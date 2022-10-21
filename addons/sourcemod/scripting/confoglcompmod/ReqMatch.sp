@@ -54,6 +54,7 @@ void RM_OnModuleStart()
 	//RegConsoleCmd("sm_match", RM_Cmd_Match);
 	RegAdminCmd("sm_forcematch", RM_Cmd_ForceMatch, ADMFLAG_CONFIG, "Forces the game to use match mode");
 	RegAdminCmd("sm_fm", RM_Cmd_ForceMatch, ADMFLAG_CONFIG, "Forces the game to use match mode");
+	RegAdminCmd("sm_startmode",	RM_Cmd_ForceStartMatch, ADMFLAG_CONFIG, "Forces the game to use start match mode");
 	RegAdminCmd("sm_resetmatch", RM_Cmd_ResetMatch, ADMFLAG_CONFIG, "Forces match mode to turn off REGRADLESS for always on or forced match");
 
 	RM_hSbAllBotGame = FindConVar("sb_all_bot_game");
@@ -162,7 +163,7 @@ static void RM_Match_Load()
 	IsPluginEnabled(true, true);
 
 	//PrintToChatAll("\x01[\x05Confogl\x01] Match mode loaded!");
-	CPrintToChatAll("{blue}[{default}Confogl{blue}]{default} Match mode loaded!");
+	CPrintToChatAll("{blue}[{default}Confogl{blue}]{default} 新比赛模式已加载!");
 
 	if (!RM_bIsMapRestarted && RM_hDoRestart.BoolValue) {
 		
@@ -173,11 +174,11 @@ static void RM_Match_Load()
 		RM_hChangeMap.GetString(sMap, sizeof(sMap));
 
 		if (strlen(sMap) > 0)
-		  CPrintToChatAll("{blue}[{default}Confogl{blue}]{default} Changing map to {green}%s{default}!", sMap);
+		  CPrintToChatAll("{blue}[{default}Confogl{blue}]{default} 更改模式为 {green}%s{default}!", sMap);
 
 		else {
 			GetCurrentMap(sMap, sizeof(sMap));
-			CPrintToChatAll("{blue}[{default}Confogl{blue}]{default} Restarting map!");
+			CPrintToChatAll("{blue}[{default}Confogl{blue}]{default} 重启地图!");
 		}
 
 		dp.WriteString(sMap);
@@ -222,7 +223,7 @@ static void RM_Match_Unload(bool bForced = false)
 	Call_Finish();
 
 	//PrintToChatAll("\x01[\x05Confogl\x01] Match mode unloaded!");
-	CPrintToChatAll("{blue}[{default}Confogl{blue}]{default} Match mode unloaded!");
+	CPrintToChatAll("{blue}[{default}Confogl{blue}]{default} 旧比赛配置已卸载!");
 
 	RM_hConfigFile_Off.GetString(sBuffer, sizeof(sBuffer));
 	ExecuteCfg(sBuffer);
@@ -254,7 +255,7 @@ static bool RM_UpdateCfgOn(const char[] cfgfile, bool bIsPrint = true)
 {
 	if (SetCustomCfg(cfgfile)) {
 		//PrintToChatAll("\x01[\x05Confogl\x01] Using \"\x04%s\x01\" config.", cfgfile);
-		CPrintToChatAll("{blue}[{default}Confogl{blue}]{default} Loading '{olive}%s{default}'.", cfgfile);
+		CPrintToChatAll("{blue}[{default}Confogl{blue}]{default} 加载配置 '{olive}%s{default}'.", cfgfile);
 
 		if (RM_DEBUG || IsDebugEnabled()) {
 			LogMessage("[%s] Starting match on config %s", RM_MODULE_NAME, cfgfile);
@@ -265,13 +266,78 @@ static bool RM_UpdateCfgOn(const char[] cfgfile, bool bIsPrint = true)
 
 	if (bIsPrint) {
 		//PrintToChatAll("\x01[\x05Confogl\x01] Config \"\x04%s\x01\" not found, using default config!", cfgfile);
-		CPrintToChatAll("{blue}[{default}Confogl{blue}]{default} Config '{olive}%s{default}' not found, using default config!", cfgfile);
+		CPrintToChatAll("{blue}[{default}Confogl{blue}]{default} 配置 '{olive}%s{default}' 没找到, 使用默认配置!", cfgfile);
 	}
 
 	return false;
 }
 
 public Action RM_Cmd_ForceMatch(int client, int args)
+{
+	if (RM_DEBUG || IsDebugEnabled()) {
+		LogMessage("[%s] Match mode forced to load!", RM_MODULE_NAME);
+	}
+
+	if (args < 1) {
+		//SetCustomCfg(""); //old code
+		//RM_Match_Load(); //old code
+
+		if (client == 0) {
+			PrintToServer("[Confogl] Please specify a config to load.");
+		} else {
+			//PrintToChat(client, "\x01[\x05Confogl\x01] Please specify a \x04config\x01 to load.");
+			CPrintToChat(client, "{blue}[{default}Confogl{blue}]{default} Please specify a {olive}config{default} to load.");
+		}
+		return Plugin_Handled;
+	}
+
+	char sBuffer[128];
+	GetCmdArg(1, sBuffer, sizeof(sBuffer));
+
+	//RM_UpdateCfgOn(sBuffer); //old code
+
+	if (!RM_UpdateCfgOn(sBuffer, false)) {
+		if (client == 0) {
+			PrintToServer("[Confogl] Config %s not found!", sBuffer);
+		} else {
+			//PrintToChat(client, "\x01[\x05Confogl\x01] Please specify a \"\x04%s\x01\" to load.", sBuffer);
+			CPrintToChat(client, "{blue}[{default}Confogl{blue}]{default} Config '{olive}%s{default}' not found!", sBuffer);
+		}
+
+		return Plugin_Handled;
+	}
+
+	char map[PLATFORM_MAX_PATH];
+	char displayName[PLATFORM_MAX_PATH];
+
+	if (args == 2)
+	{
+		GetCmdArg(2, map, sizeof(map));
+		if (FindMap(map, displayName, sizeof(displayName)) == FindMap_NotFound) {
+			CPrintToChat(client, "{blue}[{default}Confogl{blue}]{default} Map '{olive}%s{default}' not found!", map);
+			return Plugin_Handled;
+		}
+		GetMapDisplayName(displayName, displayName, sizeof(displayName));
+		RM_hChangeMap.SetString(displayName);
+	}
+	if (RM_bIsMatchModeLoaded) {
+		if (RM_DEBUG || IsDebugEnabled())
+            LogMessage("%s Unloading match mode...", RM_MODULE_NAME);
+
+		Call_StartForward(RM_hFwdMatchUnload);
+		Call_Finish();
+
+		if (RM_DEBUG || IsDebugEnabled())
+		    LogMessage("%s Match mode unloaded!", RM_MODULE_NAME);
+		RM_Match_Unload(true);
+	}
+
+	RM_Match_Load();
+
+	return Plugin_Handled;
+}
+
+public Action:RM_Cmd_ForceStartMatch(client, args)
 {
 	if (RM_bIsMatchModeLoaded) {
 		return Plugin_Handled;

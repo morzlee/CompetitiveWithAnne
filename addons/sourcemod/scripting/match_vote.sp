@@ -191,7 +191,7 @@ public int MatchModeMenuHandler(Menu menu, MenuAction action, int param1, int pa
 
 			hMenu.Display(param1, 20);
 		} else {
-			CPrintToChat(param1, "{blue}[{default}Match{blue}] {default}No configs for such mode were found.");
+			CPrintToChat(param1, "{blue}[{default}Match{blue}] {default}没有找到这个模式.");
 			MatchModeMenu(param1);
 		}
 	}
@@ -224,12 +224,12 @@ public int ConfigsMenuHandler(Menu menu, MenuAction action, int param1, int para
 bool StartMatchVote(int iClient, const char[] sCfgName)
 {
 	if (GetClientTeam(iClient) <= TEAM_SPECTATE) {
-		CPrintToChat(iClient, "{blue}[{default}Match{blue}] {default}Match voting isn't allowed for spectators.");
+		CPrintToChat(iClient, "{blue}[{default}Match{blue}] {default}旁观者不允许投票更改游戏模式.");
 		return false;
 	}
 
 	if (LGO_IsMatchModeLoaded()) {
-		CPrintToChat(iClient, "{blue}[{default}Match{blue}] {default}Matchmode already loaded!");
+		CPrintToChat(iClient, "{blue}[{default}Match{blue}] {default}模式已经加载，请先使用!rmatch卸载配置");
 		return false;
 	}
 
@@ -247,7 +247,7 @@ bool StartMatchVote(int iClient, const char[] sCfgName)
 		}
 
 		if (iNumPlayers < g_hCvarPlayerLimit.IntValue) {
-			CPrintToChat(iClient, "{blue}[{default}Match{blue}] {default}Match vote cannot be started. Not enough players.");
+			CPrintToChat(iClient, "{blue}[{default}Match{blue}] {default}没有足够多的玩家来发起模式更改投票");
 			return false;
 		}
 
@@ -263,7 +263,7 @@ bool StartMatchVote(int iClient, const char[] sCfgName)
 		return true;
 	}
 
-	CPrintToChat(iClient, "{blue}[{default}Match{blue}] {default}Match vote cannot be started now.");
+	CPrintToChat(iClient, "{blue}[{default}Match{blue}] {default}模式更改投票暂不可用.");
 	return false;
 }
 
@@ -315,12 +315,12 @@ public Action MatchReset(int iClient, int iArgs)
 bool StartResetMatchVote(int iClient)
 {
 	if (GetClientTeam(iClient) <= TEAM_SPECTATE) {
-		CPrintToChat(iClient, "{blue}[{default}Match{blue}] {default}Resetmatch voting isn't allowed for spectators.");
+		CPrintToChat(iClient, "{blue}[{default}Match{blue}] {default}旁观者不允许投票重赛.");
 		return false;
 	}
 
 	if (!LGO_IsMatchModeLoaded()) {
-		CPrintToChat(iClient, "{blue}[{default}Match{blue}] {default}No matchmode loaded.");
+		CPrintToChat(iClient, "{blue}[{default}Match{blue}] {default}当前无比赛模式加载.");
 		return false;
 	}
 
@@ -341,7 +341,7 @@ bool StartResetMatchVote(int iClient)
 		}
 
 		if (iConnectedCount > 0) {
-			CPrintToChat(iClient, "{blue}[{default}Match{blue}] {default}Resetmatch vote cannot be started. Players are connecting");
+			CPrintToChat(iClient, "{blue}[{default}Match{blue}] {default}重赛投票暂不可用，有玩家正在连接");
 			return false;
 		}
 
@@ -355,7 +355,7 @@ bool StartResetMatchVote(int iClient)
 		return true;
 	}
 
-	CPrintToChat(iClient, "{blue}[{default}Match{blue}] {default}Resetmatch vote cannot be started now.");
+	CPrintToChat(iClient, "{blue}[{default}Match{blue}] {default}重赛投票暂不可用.");
 	return false;
 }
 
