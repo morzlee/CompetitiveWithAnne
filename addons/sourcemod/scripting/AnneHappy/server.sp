@@ -8,7 +8,6 @@
 #include <colors>
 #undef REQUIRE_PLUGIN
 #include <CreateSurvivorBot>
-#include <veterans>
 
 #define CVAR_FLAGS			FCVAR_NOTIFY
 #define SCORE_DELAY_EMPTY_SERVER 3.0
@@ -16,19 +15,6 @@
 #define IsValidClient(%1)		(1 <= %1 <= MaxClients && IsClientInGame(%1))
 #define IsValidAliveClient(%1)	(1 <= %1 <= MaxClients && IsClientInGame(%1) && IsPlayerAlive(%1))
 
-bool g_bGroupSystemAvailable = false;
-
-public void OnAllPluginsLoaded(){
-	g_bGroupSystemAvailable = LibraryExists("veterans");
-}
-public void OnLibraryAdded(const char[] name)
-{
-    if ( StrEqual(name, "veterans") ) { g_bGroupSystemAvailable = true; }
-}
-public void OnLibraryRemoved(const char[] name)
-{
-    if ( StrEqual(name, "veterans") ) { g_bGroupSystemAvailable = false; }
-}
 
 enum ZombieClass
 {
@@ -51,22 +37,12 @@ public Plugin myinfo =
 	url 			= "https://github.com/Caibiii/AnneServer"
 }
 
-new Handle:hCvarMotdTitle;
-new Handle:hCvarMotdUrl;
-new Handle:hCvarIPUrl;
+
 ConVar hMaxSurvivors, hSurvivorsManagerEnable, hCvarAutoKickTank;
 int iMaxSurvivors, iEnable, iAutoKickTankEnable;
 public OnPluginStart()
 {
-	RegConsoleCmd("sm_away", AFKTurnClientToSpe);
-	RegConsoleCmd("sm_afk", AFKTurnClientToSpe);
-	RegConsoleCmd("sm_s", AFKTurnClientToSpe);
 	RegAdminCmd("sm_restartmap", RestartMap, ADMFLAG_ROOT, "restarts map");
-	AddCommandListener(Command_Setinfo, "jointeam");
-	AddCommandListener(Command_Setinfo1, "chooseteam");
-	AddNormalSoundHook(NormalSHook:OnNormalSound);
-	AddAmbientSoundHook(AmbientSHook:OnAmbientSound);
-	HookEvent("player_team", Event_PlayerTeam);	
 	HookEvent("witch_killed", WitchKilled_Event);
 	HookEvent("finale_win", ResetSurvivors);
 	HookEvent("map_transition", ResetSurvivors);
@@ -74,27 +50,20 @@ public OnPluginStart()
 	HookEvent("player_spawn", 	Event_PlayerSpawn);
 	HookEvent("player_incapacitated", OnPlayerIncappedOrDeath);
 	HookEvent("player_death", OnPlayerIncappedOrDeath);
-	HookEvent("player_disconnect", PlayerDisconnect_Event, EventHookMode_Pre);
-	RegConsoleCmd("sm_join", AFKTurnClientToSurvivors);
-	RegConsoleCmd("sm_jg", AFKTurnClientToSurvivors);
-	RegConsoleCmd("sm_ip", ShowAnneServerIP);
-	RegConsoleCmd("sm_web", ShowAnneServerWeb);
 	RegConsoleCmd("sm_setbot", SetBot);
-	RegConsoleCmd("sm_getbot", GetBot);
 	RegAdminCmd("sm_kicktank", KickMoreTankThanOne, ADMFLAG_KICK, "有多只tank得情况，随机踢至只有一只");
 	SetConVarBounds(FindConVar("survivor_limit"), ConVarBound_Upper, true, 8.0);
 	RegAdminCmd("sm_addbot", ADMAddBot, ADMFLAG_KICK, "Attempt to add a survivor bot (this bot will not be kicked by this plugin until someone takes over)");
 	hSurvivorsManagerEnable = CreateConVar("l4d_multislots_survivors_manager_enable", "0", "Enable or Disable survivors manage",CVAR_FLAGS, true, 0.0, true, 1.0);
 	hMaxSurvivors	= CreateConVar("l4d_multislots_max_survivors", "4", "Kick AI Survivor bots if numbers of survivors has exceeded the certain value. (does not kick real player, minimum is 4)", CVAR_FLAGS, true, 4.0, true, 8.0);
 	hCvarAutoKickTank = CreateConVar("l4d_multislots_autokicktank", "0", "Auto kick tank when tank number above one", CVAR_FLAGS, true, 0.0, true, 1.0);
-	hCvarMotdTitle = CreateConVar("sm_cfgmotd_title", "AnneHappy电信服");
-    hCvarMotdUrl = CreateConVar("sm_cfgmotd_url", "http://sb.trygek.com:8880/l4d_stats/index.php");  // 以后更换为数据库控制
-	hCvarIPUrl = CreateConVar("sm_cfgip_url", "http://sb.trygek.com:8880/index.php");	// 以后更换为数据库控制
 	hSurvivorsManagerEnable.AddChangeHook(ConVarChanged_Cvars);
 	hMaxSurvivors.AddChangeHook(ConVarChanged_Cvars);
 	hCvarAutoKickTank.AddChangeHook(ConVarChanged_Cvars);
 	GetCvars();
 }
+
+
 
 public void ConVarChanged_Cvars(Handle convar, const char[] oldValue, const char[] newValue)
 {
@@ -274,74 +243,7 @@ bool SpawnFakeClient()
 	return false;
 }
 
-public Action:GetBot(client, args) 
-{
-	if(!IsValidClient(client))
-		return;
-    if(IsSuivivorTeamFull()){
-		PrintToChat(client,"\x03 生还者团队已满，无其他生还者bot可供接管");
-	}else{
-		DrawSwitchCharacterMenu(client);
-	}
-}
 
-public void DrawSwitchCharacterMenu(int client)
-{
-	Menu menu = new Menu(SwitchCharacterMenuHandler);
-	menu.SetTitle("请选择喜欢的人物：");
-	// 添加 Bot 到菜单中
-	int menuindex = 0;
-	for (int bot = 1; bot <= MaxClients; bot++)
-	{
-		if (IsClientInGame(bot))
-		{
-			char botid[32], botname[32], menuitem[8];
-			GetClientName(bot, botname, sizeof(botname));
-			GetClientAuthId(bot, AuthId_Steam2, botid, sizeof(botid));
-			if (strcmp(botid, "BOT") == 0 && GetClientTeam(bot) == 2)
-			{
-				GetClientName(bot, botname, sizeof(botname));
-				IntToString(menuindex, menuitem, sizeof(menuitem));
-				menu.AddItem(menuitem, botname);
-				menuindex++;
-			}
-		}
-	}
-	menu.ExitButton = true;
-	menu.Display(client, 20);
-}
-
-public int SwitchCharacterMenuHandler(Menu menu, MenuAction action, int param1, int param2)
-{
-	if (action == MenuAction_Select)
-	{
-		char botname[32];
-		GetMenuItem(menu, param2, botname, sizeof(botname), _, botname, sizeof(botname));
-		ChangeClientTeam(param1, 3);
-		DataPack  dp;
-		dp.WriteCell(param1);
-		dp.WriteString(botname);
-		CreateTimer(1.0, ChangeTeam, dp);
-	}
-	else if (action == MenuAction_Cancel)
-	{
-		delete menu;
-	}
-	else if (action == MenuAction_End)
-	{
-		delete menu;
-	}
-	return 0;
-}
-
-public Action ChangeTeam(Handle timer, DataPack  dp){
-	dp.Reset();
-	char botname[32];
-	int client = dp.ReadCell();
-	dp.ReadString(botname, 32);
-	ClientCommand(client, "jointeam survivor %s", botname);
-	return Plugin_Continue;
-}
 
 public Action:SetBot(client, args) 
 {
@@ -395,84 +297,6 @@ public Action Timer_MobChange(Handle timer)
 
     return Plugin_Stop;
 }
-*/
-
-
-public Action:PlayerDisconnect_Event(Handle:event, const String:name[], bool:dontBroadcast)
-{
-    int client = GetClientOfUserId(GetEventInt(event,"userid"));
-
-    if (!(1 <= client <= MaxClients))
-        return Plugin_Handled;
-
-    if (!IsClientInGame(client))
-        return Plugin_Handled;
-
-    if (IsFakeClient(client))
-        return Plugin_Handled;
-
-    new String:reason[64];
-    new String:message[64];
-    GetEventString(event, "reason", reason, sizeof(reason));
-
-    if(StrContains(reason, "connection rejected", false) != -1)
-    {
-        Format(message,sizeof(message),"连接被拒绝");
-    }
-    else if(StrContains(reason, "timed out", false) != -1)
-    {
-        Format(message,sizeof(message),"超时");
-    }
-    else if(StrContains(reason, "by console", false) != -1)
-    {
-        Format(message,sizeof(message),"控制台退出");
-    }
-    else if(StrContains(reason, "by user", false) != -1)
-    {
-        Format(message,sizeof(message),"自己主动断开连接");
-    }
-    else if(StrContains(reason, "ping is too high", false) != -1)
-    {
-        Format(message,sizeof(message),"ping 太高了");
-    }
-    else if(StrContains(reason, "No Steam logon", false) != -1)
-    {
-        Format(message,sizeof(message),"no steam logon/ steam验证失败");
-    }
-    else if(StrContains(reason, "Steam account is being used in another", false) != -1)
-    {
-        Format(message,sizeof(message),"steam账号被顶");
-    }
-    else if(StrContains(reason, "Steam Connection lost", false) != -1)
-    {
-        Format(message,sizeof(message),"steam断线");
-    }
-    else if(StrContains(reason, "This Steam account does not own this game", false) != -1)
-    {
-        Format(message,sizeof(message),"没有这款游戏");
-    }
-    else if(StrContains(reason, "Validation Rejected", false) != -1)
-    {
-        Format(message,sizeof(message),"验证失败");
-    }
-    else if(StrContains(reason, "Certificate Length", false) != -1)
-    {
-        Format(message,sizeof(message),"certificate length");
-    }
-    else if(StrContains(reason, "Pure server", false) != -1)
-    {
-        Format(message,sizeof(message),"纯净服务器");
-    }
-    else
-    {
-        message = reason;
-    }
-
-    CPrintToChatAll("{green}%N {olive}离开了游戏 - 理由: [{green}%s{olive}]", client, message);
-    return Plugin_Handled;
-} 
-
-
 
 
 public void OnAutoConfigsBuffered()
@@ -486,58 +310,7 @@ public void OnAutoConfigsBuffered()
         ServerCommand("exec \"%s\"", sMapConfig);
      }
 } 
-
-ShowMotdToPlayer(client)
-{
-	decl String:title[64], String:url[192];
-    GetConVarString(hCvarMotdTitle, title, sizeof(title));
-    GetConVarString(hCvarMotdUrl, url, sizeof(url));
-    ShowMOTDPanel(client, title, url, MOTDPANEL_TYPE_URL);
-}
-
-public Action:ShowAnneServerIP(client, args) 
-{
-    decl String:title[64], String:url[192];
-    GetConVarString(hCvarMotdTitle, title, sizeof(title));
-    GetConVarString(hCvarIPUrl, url, sizeof(url));
-	ShowMOTDPanel(client, title, url, MOTDPANEL_TYPE_URL);
-}
-
-public Action:ShowAnneServerWeb(client, args) 
-{
-    decl String:title[64], String:url[192];
-    GetConVarString(hCvarMotdTitle, title, sizeof(title));
-    GetConVarString(hCvarMotdUrl, url, sizeof(url));
-	ShowMOTDPanel(client, title, url, MOTDPANEL_TYPE_URL);
-}
-
-void checkbot(){
-	int count=0;
-	for (new i = 1; i <= MaxClients; i++)
-	{
-		if (IsClientInGame(i) && GetClientTeam(i) == 2)
-		{
-			count++;
-		}
-	}
-	if(count==0)
-	{
-		while(count<=4){
-			ServerCommand("sb_add");
-			count++;
-		}	
-	}
-}
-
-public Action:AFKTurnClientToSurvivors(client, args)
-{ 
-	checkbot();
-	if(!IsSuivivorTeamFull())
-	{
-		ClientCommand(client, "jointeam survivor");
-	}
-	return Plugin_Handled;
-}
+*/
 
 public Action RestartMap(client,args)
 {
@@ -550,17 +323,10 @@ public event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 	CreateTimer( 3.0, Timer_DelayedOnRoundStart, _, TIMER_FLAG_NO_MAPCHANGE );
 }
 
-public Action:Timer_DelayedOnRoundStart(Handle:timer) 
+public Action Timer_DelayedOnRoundStart(Handle:timer) 
 {
 	SetConVarString(FindConVar("mp_gamemode"), "coop");
-	char sMapConfig[128];
-	GetCurrentMap(sMapConfig, sizeof(sMapConfig));
-    Format(sMapConfig, sizeof(sMapConfig), "cfg/sourcemod/map_cvars/%s.cfg", sMapConfig);
-    if (FileExists(sMapConfig, true))
-    {
-        strcopy(sMapConfig, sizeof(sMapConfig), sMapConfig[4]);
-        ServerCommand("exec \"%s\"", sMapConfig);
-    }
+	return Plugin_Continue;
 }
 
 public Action L4D2_OnEndVersusModeRound(bool countSurvivors)
@@ -573,93 +339,6 @@ public Action:ResetSurvivors(Handle:event, const String:name[], bool:dontBroadca
 {
 	RestoreHealth();
 	ResetInventory();
-}
-
-public OnClientPutInServer(client)
-{
-	if(g_bGroupSystemAvailable){
-		if(!Veterans_Get(client, view_as<TARGET_OPTION_INDEX>(GOURP_MEMBER))){
-			ShowMotdToPlayer(client);
-		}
-	}else{
-		ShowMotdToPlayer(client);
-	}
-
-	if(client > 0 && IsClientConnected(client) && !IsFakeClient(client))
-	{
-		//ServerCommand("sm_addbot2");
-		CreateTimer(3.0, Timer_CheckDetay, client, TIMER_FLAG_NO_MAPCHANGE);
-	}
-
-}
-
-
-public Action:Event_PlayerTeam(Handle:event, const String:name[], bool:dontBroadcast)
-{
-	new Client = GetEventInt(event, "userid");
-	new target = GetClientOfUserId(Client);
-	new team = GetEventInt(event, "team");
-	new bool:disconnect = GetEventBool(event, "disconnect");
-	if (IsValidPlayer(target) && !disconnect && team == 3)
-	{
-		if(!IsFakeClient(target))
-		{
-			CreateTimer(0.5, Timer_CheckDetay2, target, TIMER_FLAG_NO_MAPCHANGE);
-		}
-	}
-	//CreateTimer(0.1, Timer_MobChange, 0, TIMER_FLAG_NO_MAPCHANGE);
-	return Plugin_Continue;
-}
-
-public Action:Timer_CheckDetay(Handle:Timer, any:client)
-{
-	if(IsValidPlayerInTeam(client, 3))
-	{
-		ChangeClientTeam(client, 1); 
-	}
-}
-
-public Action:Timer_CheckDetay2(Handle:Timer, any:client)
-{
-	ChangeClientTeam(client, 1); 
-}
-/*
-public Action:Timer_ReStartMap(Handle:Timer, any:client)
-{
-	new humans = GetHumanCount();
-	if(humans > g_ServerMaxSurvivor)
-	{	
-		PrintToChatAll("[检测到未知错误.即将重启地图]");
-		ServerCommand("sm_restartmap");
-	}
-}
-*/
-public Action:Command_Setinfo(client, const String:command[], args)
-{
-    decl String:arg[32];
-    GetCmdArg(1, arg, sizeof(arg));
-    if (!StrEqual(arg, "survivor") || IsSuivivorTeamFull())
-	{
-		return Plugin_Handled;
-	}
-	return Plugin_Continue;
-} 
-
-public Action:Command_Setinfo1(client, const String:command[], args)
-{
-    return Plugin_Handled;
-} 
-
-public Action:AFKTurnClientToSpe(client, args) 
-{
-	if(!IsPinned(client))
-	CreateTimer(2.5, Timer_CheckAway, client, TIMER_FLAG_NO_MAPCHANGE);
-	return Plugin_Handled;
-}
-
-public Action:Timer_CheckAway(Handle:Timer, any:client)
-{
-	ChangeClientTeam(client, 1); 
 }
 
 public Action:L4D_OnFirstSurvivorLeftSafeArea() 
@@ -706,26 +385,6 @@ public Action:Timer_AutoGive(Handle:timer)
 		}
 	}
 }
-//玩家加入游戏
-public OnClientConnected(client)
-{
-	if(!IsFakeClient(client))
-	{
-		PrintToChatAll("\x04 %N \x05正在爬进服务器",client);
-	}
-}
-/*
-// 玩家离开游戏 
-public OnClientDisconnect(client)
-{
-	if(!client || IsFakeClient(client) || (IsClientConnected(client) && !IsClientInGame(client))) return; //連線中尚未進來的玩家離線
-	if(!IsFakeClient(client))
-	{
-		PrintToChatAll("\x04 %N \x05离开服务器",client);
-	}
-}
-*/
-
 
 //秒妹回实血
 public WitchKilled_Event(Handle:event, const String:name[], bool:dontBroadcast)
@@ -741,16 +400,6 @@ public WitchKilled_Event(Handle:event, const String:name[], bool:dontBroadcast)
 		}
 		SetSurvivorPermHealth(client, targetHealth);
 	}
-}
-
-public Action:OnNormalSound(int clients[64], int &numClients, char sample[PLATFORM_MAX_PATH], int &entity, int &channel, float &volume, int &level, int &pitch, int &flags)
-{
-	return (StrContains(sample, "firewerks", true) > -1) ? Plugin_Stop : Plugin_Continue;
-}
-
-public Action:OnAmbientSound(char sample[PLATFORM_MAX_PATH], int &entity, float &volume, int &level, int &pitch, float pos[3], int &flags, float &delay)
-{
-	return (StrContains(sample, "firewerks", true) > -1) ? Plugin_Stop : Plugin_Continue;
 }
 
 ResetInventory() 
@@ -777,19 +426,7 @@ DeleteInventoryItem(client, slot)
 		RemovePlayerItem(client, item);
 	}	
 }
-/*
-FindSurvivorBot()
-{
-	for (new client = 1; client <= MaxClients; client++)
-	{
-		if (IsClientInGame(client) && IsFakeClient(client) && GetClientTeam(client) == 2)
-		{
-			return client;
-		}
-	}
-	return -1;
-}
-*/
+
 RestoreHealth() 
 {
 	for (new client = 1; client <= MaxClients; client++) 
@@ -803,12 +440,6 @@ RestoreHealth()
 		}
 	}
 }
-public Action:CrashServer(Handle:timer)
-{
-	//LogError("无人连接服务器，crash服务器");
-    SetCommandFlags("crash", GetCommandFlags("crash")&~FCVAR_CHEAT);
-    ServerCommand("crash");
-}
 
 CrashMap()
 {
@@ -816,21 +447,7 @@ CrashMap()
     GetCurrentMap(mapname, sizeof(mapname));
 	ServerCommand("changelevel %s", mapname);
 }
-/*
-GetHumanCount()
-{
-	new humans = 0;
-	new i;
-	for(i = 1; i <= MaxClients; i++)
-	{
-		if(IsClientInGame(i) && GetClientTeam(i) == 2)
-		{
-			humans++;
-		}
-	}
-	return humans;
-}
-*/
+
 BypassAndExecuteCommand(client, String: strCommand[], String: strParam1[])
 {
 	new flags = GetCommandFlags(strCommand);
@@ -838,8 +455,9 @@ BypassAndExecuteCommand(client, String: strCommand[], String: strParam1[])
 	FakeClientCommand(client, "%s %s", strCommand, strParam1);
 	SetCommandFlags(strCommand, flags);
 }
+
 //判断生还是否已经满人
-bool:IsSuivivorTeamFull() 
+stock bool IsSuivivorTeamFull() 
 {
 	for (new i = 1; i <= MaxClients; i++)
 	{
@@ -851,7 +469,7 @@ bool:IsSuivivorTeamFull()
 	return true;
 }
 //判断是否为生还者
-stock bool:IsSurvivor(client) 
+stock bool IsSurvivor(client) 
 {
 	if(client > 0 && client <= MaxClients && IsClientInGame(client) && GetClientTeam(client) == 2) 
 	{
@@ -863,7 +481,7 @@ stock bool:IsSurvivor(client)
 	}
 }
 //判断是否为玩家再队伍里
-bool:IsValidPlayerInTeam(client,team)
+stock bool IsValidPlayerInTeam(client,team)
 {
 	if(IsValidPlayer(client))
 	{
@@ -874,7 +492,7 @@ bool:IsValidPlayerInTeam(client,team)
 	}
 	return false;
 }
-bool:IsValidPlayer(Client, bool:AllowBot = true, bool:AllowDeath = true)
+stock bool IsValidPlayer(Client, bool:AllowBot = true, bool:AllowDeath = true)
 {
 	if (Client < 1 || Client > MaxClients)
 		return false;
@@ -896,7 +514,7 @@ bool:IsValidPlayer(Client, bool:AllowBot = true, bool:AllowDeath = true)
 }
 
 //判断生还者是否已经被控
-stock bool:IsPinned(client) 
+stock bool IsPinned(client) 
 {
 	new bool:bIsPinned = false;
 	if (IsSurvivor(client)) 
@@ -910,17 +528,17 @@ stock bool:IsPinned(client)
 	return bIsPinned;
 }
 
-GetSurvivorPermHealth(client)
+stock int GetSurvivorPermHealth(int client)
 {
 	return GetEntProp(client, Prop_Send, "m_iHealth");
 }
 
-SetSurvivorPermHealth(client, health)
+stock void SetSurvivorPermHealth(client, health)
 {
 	SetEntProp(client, Prop_Send, "m_iHealth", health);
 }
 
-bool:IsPlayerIncap(client)
+stock bool IsPlayerIncap(client)
 {
 	return bool:GetEntProp(client, Prop_Send, "m_isIncapacitated");
 }

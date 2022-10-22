@@ -44,7 +44,7 @@ public void OnPluginStart()
 	// HookEvent
 	HookEvent("player_spawn", evt_PlayerSpawn, EventHookMode_Pre);
 	HookEvent("player_shoved", evt_PlayerShoved, EventHookMode_Pre);
-	HookEvent("player_jump", evt_PlayerJump, EventHookMode_Pre);
+	//HookEvent("player_jump", evt_PlayerJump, EventHookMode_Pre);
 	HookEvent("jockey_ride", evt_JockeyRide);
 	// AddChangeHook
 	g_hBhopSpeed.AddChangeHook(ConVarChanged_Cvars);
@@ -124,6 +124,8 @@ public Action OnPlayerRunCmd(int jockey, int &buttons, int &impulse, float vel[3
 								}
 							}
 							SetState(jockey, 0, IN_JUMP);
+							int fLeapCooldown = GetConVarInt(FindConVar("z_jockey_leap_again_timer"));
+							CreateTimer(float(fLeapCooldown), Timer_LeapCoolDown, jockey, TIMER_FLAG_NO_MAPCHANGE);
 						}
 					}
 					else
@@ -190,11 +192,12 @@ public Action Timer_LeapCoolDown(Handle timer, int jockey)
 {
 	g_bHasBeenShoved[jockey] = false;
 	g_bCanLeap[jockey] = true;
+	return Plugin_Continue;
 }
 
 public void evt_JockeyRide(Event event, const char[] name, bool dontBroadcast)
 {
-	if (IsCoop)
+	if (IsCoop())
 	{
 		int attacker = GetClientOfUserId(event.GetInt("userid"));
 		int victim = GetClientOfUserId(event.GetInt("victim"));
