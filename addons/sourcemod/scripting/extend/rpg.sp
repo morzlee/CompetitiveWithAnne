@@ -182,7 +182,8 @@ public void  OnPluginStart()
 	HookEvent("player_spawn", 	Event_Player_Spawn);
 	HookEvent("mission_lost",EventMissionLost);
 	HookEvent("map_transition", EventMapChange);
-	HookEvent("player_afk", 	Event_PlayerAFK);
+	HookEvent("player_afk", 	Event_PlayerAFK, EventHookMode_Pre);
+	HookEvent("player_team", 	Event_PlayerDisconnectOrAFK, EventHookMode_Post);
 	//HookEvent("player_team", 	Event_PlayerTeam, EventHookMode_Pre);
 	g_cShopEnable =  CreateConVar("shop_enable", "0", "是否打开商店购买", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	AllowBigGun = CreateConVar("rpg_allow_biggun", "0", "商店是否允许购买大枪", FCVAR_NOTIFY, true, 0.0, true, 1.0);
@@ -248,6 +249,17 @@ void ConVarChanged_Cvars(ConVar convar, const char[] oldValue, const char[] newV
 		IsAllowBigGun = true;
 	else
 		IsAllowBigGun = false;
+
+}
+
+public void Event_PlayerDisconnectOrAFK( Event hEvent, const char[] sName, bool bDontBroadcast )
+{
+	int client = GetClientOfUserId( hEvent.GetInt( "userid" ));
+	int team = hEvent.GetInt( "team" );
+	bool disconnect = hEvent.GetBool( "disconnect" );
+	if(IsValidClient(client) && (team == 3 || disconnect)){
+		DisableGlow(client);
+	}
 }
 
 public void Event_PlayerAFK( Event hEvent, const char[] sName, bool bDontBroadcast )

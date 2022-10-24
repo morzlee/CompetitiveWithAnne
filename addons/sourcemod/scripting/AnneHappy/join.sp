@@ -265,7 +265,7 @@ public Action TurnClientToSurvivors(int client, int args)
 public Action AFKTurnClientToSpe(int client, int args) 
 {
 	if(!IsPinned(client))
-		ChangeClientTeam(client, 1);
+		CreateTimer(1.0, Timer_CheckDetay2, client, TIMER_FLAG_NO_MAPCHANGE);
 	return Plugin_Handled;
 }
 
