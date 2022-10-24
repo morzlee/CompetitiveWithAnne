@@ -105,6 +105,14 @@
 		"start_extra_dist"	"0.000000"
 		"end_dist"			"150.000000"
 		"horde_limit"		"120"
+		"tank_ban_flow"
+		{
+			"Alley choke to up top"
+			{
+				"min"		"56"
+				"max"		"68"
+			}
+		}
 		"witch_ban_flow"
 		{
 			"Ladder"
