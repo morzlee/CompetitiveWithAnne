@@ -50,4 +50,9 @@
 		"type"		"S"
 		"text"		"{LIGHTGREEN}服务器Mod开关可以在投票菜单中开启"
 	}
+	"10"
+	{
+		"type"		"S"
+		"text"		"{LIGHTGREEN}!votekick 投票踢出不m闲置玩家[仅玩家] !voteban 投票封禁开挂/嘴臭玩家[所有人]"
+	}
 }
