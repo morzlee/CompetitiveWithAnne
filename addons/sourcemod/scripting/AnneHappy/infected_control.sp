@@ -144,6 +144,7 @@ public void OnPluginStart()
 	HookEvent("finale_win", evt_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("map_transition", evt_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("mission_lost", evt_RoundEnd, EventHookMode_PostNoCopy);
+	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_PostNoCopy);
 	// AddChangeHook
 	g_hSpawnDistanceMax.AddChangeHook(ConVarChanged_Cvars);
 	g_hSpawnDistanceMin.AddChangeHook(ConVarChanged_Cvars);
@@ -953,6 +954,8 @@ stock bool PlayerVisibleToSDK(float targetposition[3], bool IsTeleport = false){
 
 	for (int client = 1; client <= MaxClients; client++)
 	{
+		//计算该位置是不是和所有人都相隔大于g_fSpawnDistanceMax
+		int count = 0;
 		if (IsClientInGame(client) && GetClientTeam(client) == 2 && IsPlayerAlive(client))
 		{
 			GetClientEyePosition(client, position);
@@ -984,7 +987,11 @@ stock bool PlayerVisibleToSDK(float targetposition[3], bool IsTeleport = false){
 			//太远直接返回没看见
 			if(GetVectorDistance(targetposition, position) >= g_fSpawnDistanceMax)
 			{
-				return false;
+				count++;
+				if(count >= g_iSurvivorNum){
+					return false;
+				}
+
 			}
 			if (SDKCall(g_hSDKIsVisibleToPlayer, targetposition, client, 2, 3, 0.0, 0, pArea, true))
 			{
