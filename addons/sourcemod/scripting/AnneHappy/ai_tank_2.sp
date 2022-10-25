@@ -7,7 +7,7 @@
 #include <colors>
 #include <left4dhooks>
 //#include "vector/vector_show.sp"
-#include "treeutil.sp"
+#include <treeutil>
 
 
 #define CVAR_FLAG FCVAR_NOTIFY
@@ -20,7 +20,7 @@
 #define LAG_DETECT_TIME 2.0									// 坦克位置检测间隔
 #define LAG_DETECT_RAIDUS 100								// 坦克位置检测范围
 #define TREE_DETECT_TIME 1.5								// 绕树检测间隔
-#define VISION_UNLOCK_TIME 2								// 视角解锁间隔
+#define VISION_UNLOCK_TIME 2.5								// 视角解锁间隔
 #define SPEED_FIXED_LENGTH 300.0							// 速度修正最大速度长度
 #define RAY_ANGLE view_as<float>({90.0, 0.0, 0.0})
 #define FL_JUMPING 65922
@@ -313,7 +313,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		}
 		//PrintToConsoleAll("锁定视角start");
 		// 视角锁定，不允许消耗时并当前时间戳减去扔石头时的时间戳大于 ROCK_AIM_TIME 锁定视角
-		if (bHasSight && !eTankStructure[client].bCanConsume && GetGameTime() - eTankStructure[client].fRockThrowTime > ROCK_AIM_TIME && !IsOnLadder(client) && !IsClientIncapped(nearest_target))
+		if (bHasSight && !eTankStructure[client].bCanConsume && GetGameTime() - eTankStructure[client].fRockThrowTime > ROCK_AIM_TIME && !IsOnLadder(client) && !IsClientIncapped(nearest_target) && eTankStructure[client].bCanLockVision)
 		//if (bHasSight && !eTankStructure[client].bCanConsume && GetGameTime() - eTankStructure[client].fRockThrowTime > ROCK_AIM_TIME && !IsOnLadder(client) && !IsClientIncapped(nearest_target))
 		{
 			//PrintToConsoleAll("锁定视角");

@@ -297,6 +297,7 @@
 #include <sdktools>
 #include <sdkhooks>
 #include <clientprefs>
+#undef REQUIRE_PLUGIN
 #include <l4dstats>
 
 #define CVAR_FLAGS			FCVAR_NOTIFY
@@ -317,7 +318,7 @@ ConVar g_hCvarAllow, g_hCvarBots, g_hCvarChange, g_hCvarDetect, g_hCvarMake, g_h
 ConVar g_hCvarMPGameMode, g_hPluginReadyUp;
 Handle g_hCookie_Hat, g_hCookie_All;
 Menu g_hMenu, g_hMenus[MAXPLAYERS+1];
-bool g_bCvarAllow, g_bMapStarted, g_bCvarBots, g_bCvarWall, g_bLeft4Dead2, g_bTranslation, g_bViewHooked, g_bValidMap;
+bool g_bCvarAllow, g_bMapStarted, g_bCvarBots, g_bCvarWall, g_bLeft4Dead2, g_bTranslation, g_bViewHooked, g_bValidMap, g_bl4dstatsAvailable;
 int g_iCount, g_iCvarMake, g_iCvarMenu, g_iCvarOpaq, g_iCvarRand, g_iCvarSave, g_iCvarThird;
 float g_fCvarChange, g_fCvarDetect;
 
@@ -351,6 +352,15 @@ native bool ToggleReadyPanel(bool show, int target = 0);
 
 
 
+public void OnLibraryAdded(const char[] name)
+{
+    if ( StrEqual(name, "l4d_stats") ) { g_bl4dstatsAvailable = true; }
+}
+public void OnLibraryRemoved(const char[] name)
+{
+    if ( StrEqual(name, "l4d_stats") ) { g_bl4dstatsAvailable = false; }
+}
+
 // ====================================================================================================
 //					PLUGIN INFO / START / END
 // ====================================================================================================
@@ -373,6 +383,8 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 		strcopy(error, err_max, "Plugin only supports Left 4 Dead 1 & 2.");
 		return APLRes_SilentFailure;
 	}
+
+	RegPluginLibrary("l4d_hats");
 
 	g_hForwardLoadSave = new GlobalForward("L4D_OnHatLoadSave", ET_Ignore, Param_Cell, Param_Cell);
 
@@ -397,6 +409,7 @@ public void OnAllPluginsLoaded()
 	}
 
 	g_hPluginReadyUp = FindConVar("l4d_ready_enabled");
+	g_bl4dstatsAvailable = LibraryExists("l4d_stats");
 }
 
 public void OnPluginStart()
@@ -486,8 +499,8 @@ public void OnPluginStart()
 	g_hCvarBots = CreateConVar(			"l4d_hats_bots",		"0",			"0=Disallow bots from spawning with Hats. 1=Allow bots to spawn with hats.", CVAR_FLAGS, true, 0.0, true, 1.0 );
 	g_hCvarChange = CreateConVar(		"l4d_hats_change",		"1.3",			"0=Off. Other value puts the player into thirdperson for this many seconds when selecting a hat.", CVAR_FLAGS );
 	g_hCvarDetect = CreateConVar(		"l4d_hats_detect",		"0.3",			"0.0=Off. How often to detect thirdperson view. Also uses ThirdPersonShoulder_Detect plugin if available.", CVAR_FLAGS );
-	g_hCvarMake = CreateConVar(			"l4d_hats_make",		"b",				"Specify admin flags or blank to allow all players to spawn with a hat, requires the l4d_hats_random cvar to spawn.", CVAR_FLAGS );
-	g_hCvarMenu = CreateConVar(			"l4d_hats_menu",		"b",				"Specify admin flags or blank to allow all players access to the hats menu.", CVAR_FLAGS );
+	g_hCvarMake = CreateConVar(			"l4d_hats_make",		"c",				"Specify admin flags or blank to allow all players to spawn with a hat, requires the l4d_hats_random cvar to spawn.", CVAR_FLAGS );
+	g_hCvarMenu = CreateConVar(			"l4d_hats_menu",		"c",				"Specify admin flags or blank to allow all players access to the hats menu.", CVAR_FLAGS );
 	g_hCvarModes = CreateConVar(		"l4d_hats_modes",		"",				"Turn on the plugin in these game modes, separate by commas (no spaces). (Empty = all).", CVAR_FLAGS );
 	g_hCvarModesOff = CreateConVar(		"l4d_hats_modes_off",	"",				"Turn off the plugin in these game modes, separate by commas (no spaces). (Empty = none).", CVAR_FLAGS );
 	g_hCvarModesTog = CreateConVar(		"l4d_hats_modes_tog",	"",				"Turn on the plugin in these game modes. 0=All, 1=Coop, 2=Survival, 4=Versus, 8=Scavenge. Add numbers together.", CVAR_FLAGS );
@@ -1369,18 +1382,6 @@ Action CmdHatMain(int client, int args)
 		CPrintToChat(client, "%T%T", "HAT_SYSTEM", client, "HAT_NOT_RIGHT_NOW", client);
 		return Plugin_Handled;
 	}
-	/*
-	if( g_iCvarMenu != 0 && !l4dstats_IsTopPlayer(client,50))
-	{
-		int flags = GetUserFlagBits(client);
-
-		if( !(flags & ADMFLAG_ROOT) && !(flags & g_iCvarMenu) )
-		{
-			CPrintToChat(client, "%T%T", "HAT_SYSTEM", client, "No Access", client);
-			return Plugin_Handled;
-		}
-	}
-	*/
 	SetReadyUpPlugin(client, false);
 
 	g_iMenuType[client] = 0;
@@ -1460,13 +1461,14 @@ Action CmdHat(int client, int args)
 		return Plugin_Handled;
 	}
 
-	if( g_iCvarMenu != 0 && !l4dstats_IsTopPlayer(client,100) )
+	if( g_iCvarMenu != 0 && (g_bl4dstatsAvailable && !l4dstats_IsTopPlayer(client,100)) )
 	{
 		int flags = GetUserFlagBits(client);
 
 		if( !(flags & ADMFLAG_ROOT) && !(flags & g_iCvarMenu) )
 		{
-			CPrintToChat(client, "{GREEN}[HAT]{DEFAULT}你还没有权限使用帽子，请确认你是否为{ORANGE}管理员或积分排名榜前100名玩家");
+			CPrintToChat(client, "%T%T", "HAT_SYSTEM", client, "No Access", client);
+			//CPrintToChat(client, "{GREEN}[HAT]{DEFAULT}你还没有权限使用帽子，请确认你是否为{ORANGE}管理员或积分排名榜前100名玩家");
 			return Plugin_Handled;
 		}
 	}
@@ -2637,7 +2639,7 @@ bool CreateHat(int client, int index = -1)
 		if( g_iCvarRand == 0 ) return false;
 		if( g_iType[client] == -1 ) return false;
 
-		if( g_iCvarMenu != 0 && !l4dstats_IsTopPlayer(client,30))
+		if( g_iCvarMenu != 0)
 		{
 			if( IsFakeClient(client) )
 				return false;

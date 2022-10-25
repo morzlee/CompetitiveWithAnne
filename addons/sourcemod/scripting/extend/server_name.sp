@@ -45,6 +45,8 @@ public void OnPluginStart()
 	if (strlen(g_sDefaultN))
 		ChangeServerName();
 	HookEvent("player_team", Event_PlayerTeam, EventHookMode_Post);
+	HookEvent("player_bot_replace", Event_PlayerTeam, EventHookMode_Post);
+	HookEvent("bot_player_replace", Event_PlayerTeam, EventHookMode_Post);
 }
 
 public void Event_PlayerTeam( Event hEvent, const char[] sName, bool bDontBroadcast )

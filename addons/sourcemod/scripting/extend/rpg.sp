@@ -133,10 +133,10 @@ public void OnLibraryAdded(const char[] name)
 }
 public void OnLibraryRemoved(const char[] name)
 {
-    if ( StrEqual(name, "l4d2_godframes_control_merge") ) { g_bGodFrameSystemAvailable = true; }
-	else if ( StrEqual(name, "l4d_hats") ) { g_bHatSystemAvailable = true; }
-	else if ( StrEqual(name, "l4d_stats") ) { g_bl4dstatsSystemAvailable = true; }
-	else if ( StrEqual(name, "hextags") ) { g_bHextagsSystemAvailable = true; }
+    if ( StrEqual(name, "l4d2_godframes_control_merge") ) { g_bGodFrameSystemAvailable = false; }
+	else if ( StrEqual(name, "l4d_hats") ) { g_bHatSystemAvailable = false; }
+	else if ( StrEqual(name, "l4d_stats") ) { g_bl4dstatsSystemAvailable = false; }
+	else if ( StrEqual(name, "hextags") ) { g_bHextagsSystemAvailable = false; }
 }
 
 //god frame send forward implement
@@ -883,7 +883,7 @@ public Action ApplyTags(int client,int args)
 //设置称号指令
 public Action SetCH(int client,int args)
 { 
-	if(!g_bHatSystemAvailable){
+	if(!g_bl4dstatsSystemAvailable){
 		return Plugin_Handled;
 	}
 	if(g_bl4dstatsSystemAvailable && l4dstats_GetClientScore(client) < 500000 || !g_bl4dstatsSystemAvailable)
