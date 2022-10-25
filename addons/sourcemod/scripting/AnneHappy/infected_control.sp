@@ -1,6 +1,6 @@
 #pragma semicolon 1
 #pragma newdecls required
-#define DEBUG 1
+#define DEBUG 0
 // 头文件
 #include <sourcemod>
 #include <sdktools>

@@ -5,7 +5,7 @@
 #include <sdktools>
 #include <sdkhooks>
 #include <left4dhooks>
-#include "treeutil.sp"
+#include <treeutil>
 
 #define TEAM_SURVIVOR 2
 #define TEAM_INFECTED 3
@@ -36,6 +36,8 @@ int 	g_iRushTimes[MAXPLAYERS+1];
 int		g_iTanksCount;
 /*
 	ChangeLog:
+	2.0
+		救援关不启用跑男惩罚
 	1.9
 		更改PlayerVisibleTo函数为PlayerVisibleToSDK函数
 
@@ -506,6 +508,9 @@ public Action Timer_CheckRusher(Handle timer) {
 	
 	if (g_iTanksCount == 1)
 		return Plugin_Continue;
+	
+	if(L4D_IsMissionFinalMap())
+		return Plugin_Stop;
 	
 	
 	for (i = 1; i <= MaxClients; i++)
