@@ -84,8 +84,6 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_survivor", TurnClientToSurvivors);
 	AddCommandListener(Command_Setinfo, "jointeam");
 	AddCommandListener(Command_Setinfo1, "chooseteam");
-	AddNormalSoundHook(view_as<NormalSHook>(OnNormalSound));
-	AddAmbientSoundHook(view_as<AmbientSHook>(OnAmbientSound));
 	RegConsoleCmd("sm_ip", ShowAnneServerIP);
 	RegConsoleCmd("sm_web", ShowAnneServerWeb);
 	RegConsoleCmd("sm_getbot", GetBot);
@@ -230,7 +228,7 @@ public Action TurnClientToInfected(int client, int args)
 {
 	if(!IsInfectTeamFull() && hCvarEnableInf.BoolValue)
 	{
-		ChangeClientTeam(client, 3);
+		ClientCommand(client, "jointeam infected");
 	}
 	return Plugin_Handled;
 }
@@ -273,7 +271,7 @@ public Action Command_Setinfo(int client, const char[] command, int args)
 {
 	char arg[32];
 	GetCmdArg(1, arg, sizeof(arg));
-	if (!StrEqual(arg, "survivor") || IsSuivivorTeamFull())
+	if (!hCvarEnableInf.BoolValue && (!StrEqual(arg, "survivor") || IsSuivivorTeamFull()))
 	{
 		return Plugin_Handled;
 	}
@@ -282,7 +280,13 @@ public Action Command_Setinfo(int client, const char[] command, int args)
 
 public Action Command_Setinfo1(int client, const char[] command, int args)
 {
-    return Plugin_Handled;
+	if(hCvarEnableInf.BoolValue){
+    	return Plugin_Continue;
+	}
+	else
+	{
+		return Plugin_Handled;
+	}
 } 
 
 public Action ShowAnneServerIP(int client, int args) 
@@ -309,16 +313,6 @@ public void ShowMotdToPlayer(int client)
 	GetConVarString(hCvarMotdTitle, title, sizeof(title));
 	GetConVarString(hCvarMotdUrl, url, sizeof(url));
 	ShowMOTDPanel(client, title, url, MOTDPANEL_TYPE_URL);	
-}
-
-public Action OnNormalSound(int clients[64], int &numClients, char sample[PLATFORM_MAX_PATH], int &entity, int &channel, float &volume, int &level, int &pitch, int &flags)
-{
-	return (StrContains(sample, "firewerks", true) > -1) ? Plugin_Stop : Plugin_Continue;
-}
-
-public Action OnAmbientSound(char sample[PLATFORM_MAX_PATH], int &entity, float &volume, int &level, int &pitch, float pos[3], int &flags, float &delay)
-{
-	return (StrContains(sample, "firewerks", true) > -1) ? Plugin_Stop : Plugin_Continue;
 }
 
 public Action GetBot(int client, int args) 

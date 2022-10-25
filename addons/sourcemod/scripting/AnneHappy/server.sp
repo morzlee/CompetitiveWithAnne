@@ -1,4 +1,5 @@
 #pragma semicolon 1
+#pragma newdecls required
 #pragma tabsize 0
 #include <sourcemod>
 #include <sdktools>
@@ -40,8 +41,10 @@ public Plugin myinfo =
 
 ConVar hMaxSurvivors, hSurvivorsManagerEnable, hCvarAutoKickTank;
 int iMaxSurvivors, iEnable, iAutoKickTankEnable;
-public OnPluginStart()
+public void OnPluginStart()
 {
+	AddNormalSoundHook(view_as<NormalSHook>(OnNormalSound));
+	AddAmbientSoundHook(view_as<AmbientSHook>(OnAmbientSound));
 	RegAdminCmd("sm_restartmap", RestartMap, ADMFLAG_ROOT, "restarts map");
 	HookEvent("witch_killed", WitchKilled_Event);
 	HookEvent("finale_win", ResetSurvivors);
@@ -70,7 +73,7 @@ public void ConVarChanged_Cvars(Handle convar, const char[] oldValue, const char
 	GetCvars();
 }
 
-public OnPlayerIncappedOrDeath(Handle event, char[] name, bool dontBroadcast) {
+public void OnPlayerIncappedOrDeath(Handle event, char[] name, bool dontBroadcast) {
 	int client = GetClientOfUserId(GetEventInt(event,"userid"));
 	if(!client)
 		return;
@@ -85,7 +88,7 @@ public OnPlayerIncappedOrDeath(Handle event, char[] name, bool dontBroadcast) {
 
 bool IsTeamImmobilised() {
 	bool bIsTeamImmobilised = true;
-	for (new client = 1; client < MaxClients; client++) {
+	for (int client = 1; client < MaxClients; client++) {
 		if (IsSurvivor(client) && IsPlayerAlive(client)) {
 			if (!L4D_IsPlayerIncapacitated(client) ) {		
 				bIsTeamImmobilised = false;				
@@ -97,7 +100,7 @@ bool IsTeamImmobilised() {
 }
 
 void SlaySurvivors() { //incap everyone
-	for (new client = 1; client < (MAXPLAYERS + 1); client++) {
+	for (int client = 1; client < (MAXPLAYERS + 1); client++) {
 		if (IsSurvivor(client) && IsPlayerAlive(client)) {
 			ForcePlayerSuicide(client);
 		}
@@ -245,7 +248,7 @@ bool SpawnFakeClient()
 
 
 
-public Action:SetBot(client, args) 
+public Action SetBot(int client, int args) 
 {
     if(iEnable){
 		if(GetSurvivorCount() < iMaxSurvivors)
@@ -267,6 +270,7 @@ public Action:SetBot(client, args)
 			}
 		}
 	}
+	return Plugin_Continue;
 }
 
 
@@ -312,18 +316,28 @@ public void OnAutoConfigsBuffered()
 } 
 */
 
-public Action RestartMap(client,args)
+public Action OnNormalSound(int clients[64], int &numClients, char sample[PLATFORM_MAX_PATH], int &entity, int &channel, float &volume, int &level, int &pitch, int &flags)
+{
+	return (StrContains(sample, "firewerks", true) > -1) ? Plugin_Stop : Plugin_Continue;
+}
+
+public Action OnAmbientSound(char sample[PLATFORM_MAX_PATH], int &entity, float &volume, int &level, int &pitch, float pos[3], int &flags, float &delay)
+{
+	return (StrContains(sample, "firewerks", true) > -1) ? Plugin_Stop : Plugin_Continue;
+}
+
+public Action RestartMap(int client,int args)
 {
 	CrashMap();
 	return Plugin_Continue;
 }
 
-public event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
+public void event_RoundStart(Handle event, char[] name, bool dontBroadcast)
 {
 	CreateTimer( 3.0, Timer_DelayedOnRoundStart, _, TIMER_FLAG_NO_MAPCHANGE );
 }
 
-public Action Timer_DelayedOnRoundStart(Handle:timer) 
+public Action Timer_DelayedOnRoundStart(Handle timer) 
 {
 	SetConVarString(FindConVar("mp_gamemode"), "coop");
 	return Plugin_Continue;
@@ -335,13 +349,14 @@ public Action L4D2_OnEndVersusModeRound(bool countSurvivors)
 	return Plugin_Handled;
 }
 
-public Action:ResetSurvivors(Handle:event, const String:name[], bool:dontBroadcast)
+public Action ResetSurvivors(Handle event, char[] name, bool dontBroadcast)
 {
 	RestoreHealth();
 	ResetInventory();
+	return Plugin_Continue;
 }
 
-public Action:L4D_OnFirstSurvivorLeftSafeArea() 
+public Action L4D_OnFirstSurvivorLeftSafeArea() 
 {
 	SetConVarString(FindConVar("mp_gamemode"), "coop");
 	SetBot(0,0);
@@ -359,9 +374,9 @@ stock void SetGodMode(bool canset)
 	SetConVarInt(FindConVar("sv_infinite_ammo"), canset);
 }
 
-public Action:Timer_AutoGive(Handle:timer) 
+public Action Timer_AutoGive(Handle timer) 
 {
-	for (new client = 1; client <= MaxClients; client++) 
+	for (int client = 1; client <= MaxClients; client++) 
 	{
 		if (IsSurvivor(client)) 
 		{
@@ -375,7 +390,7 @@ public Action:Timer_AutoGive(Handle:timer)
 			SetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", false);
 			if(IsFakeClient(client))
 			{
-				for (new i = 0; i < 1; i++) 
+				for (int i = 0; i < 1; i++) 
 				{ 
 					DeleteInventoryItem(client, i);		
 				}
@@ -384,16 +399,17 @@ public Action:Timer_AutoGive(Handle:timer)
 			}
 		}
 	}
+	return Plugin_Continue;
 }
 
 //秒妹回实血
-public WitchKilled_Event(Handle:event, const String:name[], bool:dontBroadcast)
+public void WitchKilled_Event(Handle event, char[] name, bool dontBroadcast)
 {
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	if (client > 0 && client <= MaxClients && IsClientInGame(client) && GetClientTeam(client) == 2 && IsPlayerAlive(client) && !IsPlayerIncap(client))
 	{
-		new maxhp = GetEntProp(client, Prop_Data, "m_iMaxHealth");
-		new targetHealth = GetSurvivorPermHealth(client) + 15;
+		int maxhp = GetEntProp(client, Prop_Data, "m_iMaxHealth");
+		int targetHealth = GetSurvivorPermHealth(client) + 15;
 		if(targetHealth > maxhp)
 		{
 			targetHealth = maxhp;
@@ -402,14 +418,14 @@ public WitchKilled_Event(Handle:event, const String:name[], bool:dontBroadcast)
 	}
 }
 
-ResetInventory() 
+void ResetInventory() 
 {
-	for (new client = 1; client <= MaxClients; client++) 
+	for (int client = 1; client <= MaxClients; client++) 
 	{
 		if (IsSurvivor(client)) 
 		{
 			
-			for (new i = 0; i < 5; i++) 
+			for (int i = 0; i < 5; i++) 
 			{ 
 				DeleteInventoryItem(client, i);		
 			}
@@ -418,18 +434,18 @@ ResetInventory()
 		}
 	}		
 }
-DeleteInventoryItem(client, slot) 
+void DeleteInventoryItem(int client, int slot) 
 {
-	new item = GetPlayerWeaponSlot(client, slot);
+	int item = GetPlayerWeaponSlot(client, slot);
 	if (item > 0) 
 	{
 		RemovePlayerItem(client, item);
 	}	
 }
 
-RestoreHealth() 
+void RestoreHealth() 
 {
-	for (new client = 1; client <= MaxClients; client++) 
+	for (int client = 1; client <= MaxClients; client++) 
 	{
 		if (IsSurvivor(client)) 
 		{
@@ -441,16 +457,16 @@ RestoreHealth()
 	}
 }
 
-CrashMap()
+void CrashMap()
 {
-    decl String:mapname[64];
+    char mapname[64];
     GetCurrentMap(mapname, sizeof(mapname));
 	ServerCommand("changelevel %s", mapname);
 }
 
-BypassAndExecuteCommand(client, String: strCommand[], String: strParam1[])
+void BypassAndExecuteCommand(int client, char[] strCommand, char[] strParam1)
 {
-	new flags = GetCommandFlags(strCommand);
+	int flags = GetCommandFlags(strCommand);
 	SetCommandFlags(strCommand, flags & ~FCVAR_CHEAT);
 	FakeClientCommand(client, "%s %s", strCommand, strParam1);
 	SetCommandFlags(strCommand, flags);
@@ -459,7 +475,7 @@ BypassAndExecuteCommand(client, String: strCommand[], String: strParam1[])
 //判断生还是否已经满人
 stock bool IsSuivivorTeamFull() 
 {
-	for (new i = 1; i <= MaxClients; i++)
+	for (int i = 1; i <= MaxClients; i++)
 	{
 		if (IsClientInGame(i) && GetClientTeam(i) == 2 && IsPlayerAlive(i) && IsFakeClient(i))
 		{
@@ -469,7 +485,7 @@ stock bool IsSuivivorTeamFull()
 	return true;
 }
 //判断是否为生还者
-stock bool IsSurvivor(client) 
+stock bool IsSurvivor(int client) 
 {
 	if(client > 0 && client <= MaxClients && IsClientInGame(client) && GetClientTeam(client) == 2) 
 	{
@@ -481,7 +497,7 @@ stock bool IsSurvivor(client)
 	}
 }
 //判断是否为玩家再队伍里
-stock bool IsValidPlayerInTeam(client,team)
+stock bool IsValidPlayerInTeam(int client, int team)
 {
 	if(IsValidPlayer(client))
 	{
@@ -492,21 +508,21 @@ stock bool IsValidPlayerInTeam(client,team)
 	}
 	return false;
 }
-stock bool IsValidPlayer(Client, bool:AllowBot = true, bool:AllowDeath = true)
+stock bool IsValidPlayer(int client, bool AllowBot = true, bool AllowDeath = true)
 {
-	if (Client < 1 || Client > MaxClients)
+	if (client < 1 || client > MaxClients)
 		return false;
-	if (!IsClientConnected(Client) || !IsClientInGame(Client))
+	if (!IsClientConnected(client) || !IsClientInGame(client))
 		return false;
 	if (!AllowBot)
 	{
-		if (IsFakeClient(Client))
+		if (IsFakeClient(client))
 			return false;
 	}
 
 	if (!AllowDeath)
 	{
-		if (!IsPlayerAlive(Client))
+		if (!IsPlayerAlive(client))
 			return false;
 	}	
 	
@@ -514,9 +530,9 @@ stock bool IsValidPlayer(Client, bool:AllowBot = true, bool:AllowDeath = true)
 }
 
 //判断生还者是否已经被控
-stock bool IsPinned(client) 
+stock bool IsPinned(int client) 
 {
-	new bool:bIsPinned = false;
+	bool bIsPinned = false;
 	if (IsSurvivor(client)) 
 	{
 		if( GetEntPropEnt(client, Prop_Send, "m_tongueOwner") > 0 ) bIsPinned = true; // smoker
@@ -533,12 +549,12 @@ stock int GetSurvivorPermHealth(int client)
 	return GetEntProp(client, Prop_Send, "m_iHealth");
 }
 
-stock void SetSurvivorPermHealth(client, health)
+stock void SetSurvivorPermHealth(int client, int health)
 {
 	SetEntProp(client, Prop_Send, "m_iHealth", health);
 }
 
-stock bool IsPlayerIncap(client)
+stock bool IsPlayerIncap(int client)
 {
-	return bool:GetEntProp(client, Prop_Send, "m_isIncapacitated");
+	return view_as<bool>(GetEntProp(client, Prop_Send, "m_isIncapacitated"));
 }

@@ -1,6 +1,6 @@
 #pragma semicolon 1
 #pragma newdecls required
-#define DEBUG 0
+#define DEBUG 1
 // 头文件
 #include <sourcemod>
 #include <sdktools>
@@ -28,7 +28,7 @@
 #define ENABLE_SPITTER			(1 << 3)		
 #define ENABLE_JOCKEY			(1 << 4)		
 #define ENABLE_CHARGER			(1 << 5)		
-#define ENABLE_TANK				(1 << 6)	
+
 
 stock const char InfectedName[10][] =
 {
@@ -59,20 +59,54 @@ public Plugin myinfo =
 }
 
 // Cvars
-ConVar g_hSpawnDistanceMin, g_hSpawnDistanceMax, g_hTeleportSi, g_hTeleportDistance, g_hSiLimit, g_hSiInterval, g_hMaxPlayerZombies, g_hTeleportCheckTime, g_hEnableSIoption, g_hAllChargerMode, g_hAllHunterMode;
+ConVar 
+	g_hSpawnDistanceMin, 
+	g_hSpawnDistanceMax, 
+	g_hTeleportSi, 
+	g_hTeleportDistance, 
+	g_hSiLimit, 
+	g_hSiInterval, 
+	g_hMaxPlayerZombies, 
+	g_hTeleportCheckTime, 
+	g_hEnableSIoption, 
+	g_hAllChargerMode,
+	g_hAddDamageToSmoker, 
+	g_hAllHunterMode;
+
 // Ints
-int g_iSiLimit, iWaveTime, g_iEnableSIoption,
-g_iTeleportCheckTime = 5, g_iTeleCount[MAXPLAYERS + 1] = {0}, g_iTargetSurvivor = -1, g_iSpawnMaxCount = 0, g_iSurvivorNum = 0, g_iSurvivors[MAXPLAYERS + 1] = {0};
-int g_ArraySIlimit[6],  g_iQueueIndex = 0;
-// ArraySpecial[6] = {0};
+int g_iSiLimit, 
+	iWaveTime, 
+	g_iEnableSIoption,
+	g_iTeleportCheckTime = 5,
+	g_ArraySIlimit[6], 
+	g_iTeleCount[MAXPLAYERS + 1] = {0}, 
+	g_iTargetSurvivor = -1, 
+	g_iQueueIndex = 0,
+	g_iSpawnMaxCount = 0, 
+	g_iSurvivorNum = 0, 
+	g_iSurvivors[MAXPLAYERS + 1] = {0};
+
 // Floats
-float g_fSpawnDistanceMin, g_fSpawnDistanceMax, g_fSpawnDistance, g_fTeleportDistance, g_fSiInterval;
+float 
+	g_fSpawnDistanceMin, 
+	g_fSpawnDistanceMax, 
+	g_fSpawnDistance, 
+	g_fTeleportDistance, 
+	g_fSiInterval;
 // Bools
-bool g_bTeleportSi, g_bIsLate = false, g_bTargetSystemAvailable = false;
+bool 
+	g_bTeleportSi, 
+	g_bAddDamageToSmoker,
+	g_bIsLate = false, 
+	g_bTargetSystemAvailable = false;
 // Handle
-Handle g_hTeleHandle = INVALID_HANDLE, g_hSDKIsVisibleToPlayer;
+Handle 
+	g_hTeleHandle = INVALID_HANDLE, 
+	g_hSDKIsVisibleToPlayer;
 // ArrayList
-ArrayList aThreadHandle, aSpawnQueue;
+ArrayList 
+	aThreadHandle, 
+	aSpawnQueue;
 
 
 public void OnAllPluginsLoaded(){
@@ -97,6 +131,7 @@ public void OnPluginStart()
 	g_hEnableSIoption = CreateConVar("inf_EnableSIoption", "63", "启用生成的特感类型，1 smoker 2 boomer 4 hunter 8 spitter 16 jockey 32 charger,把你想要生成的特感值加起来", CVAR_FLAG, true, 0.0, true, 63.0);
 	g_hAllChargerMode = CreateConVar("inf_AllChargerMode", "0", "是否是全牛模式", CVAR_FLAG, true, 0.0, true, 1.0);
 	g_hAllHunterMode = CreateConVar("inf_AllHunterMode", "0", "是否是全猎人模式", CVAR_FLAG, true, 0.0, true, 1.0);
+	g_hAddDamageToSmoker= CreateConVar("inf_AddDamageToSmoker", "0", "单人模式smoker拉人时是否5倍伤害", CVAR_FLAG, true, 0.0, true, 1.0);
 	//传送会根据这个数值画一个以选定生还者为核心，两边各长inf_TeleportDistance单位距离，高inf_TeleportDistance距离的长方形区域内找复活位置,PS传送最好近一点
 	g_hTeleportDistance = CreateConVar("inf_TeleportDistance", "600.0", "特感传送区域的复活大小", CVAR_FLAG, true, g_hSpawnDistanceMin.FloatValue);
 	g_hSiLimit = CreateConVar("l4d_infected_limit", "6", "一次刷出多少特感", CVAR_FLAG, true, 0.0);
@@ -119,6 +154,7 @@ public void OnPluginStart()
 	g_hEnableSIoption.AddChangeHook(ConVarChanged_Cvars);
 	g_hAllChargerMode.AddChangeHook(ConVarChanged_Cvars);
 	g_hAllHunterMode.AddChangeHook(ConVarChanged_Cvars);
+	g_hAddDamageToSmoker.AddChangeHook(ConVarChanged_Cvars);
 	g_hSiLimit.AddChangeHook(MaxPlayerZombiesChanged_Cvars);
 	
 	// ArrayList
@@ -131,7 +167,7 @@ public void OnPluginStart()
 	SetConVarBounds(g_hMaxPlayerZombies, ConVarBound_Upper, true, g_hSiLimit.FloatValue);
 	// Debug
 	RegAdminCmd("sm_startspawn", Cmd_StartSpawn, ADMFLAG_ROOT, "管理员重置刷特时钟");
-
+	RegAdminCmd("sm_stopspawn", Cmd_StopSpawn, ADMFLAG_ROOT, "管理员重置刷特时钟");
 }
 
 void Init()
@@ -193,7 +229,14 @@ stock Action Cmd_StartSpawn(int client, int args)
 	{
 		CreateTimer(0.1, SpawnFirstInfected);
 		GetSiLimit();
+		TweakSettings();
 	}
+	return Plugin_Continue;
+}
+
+stock Action Cmd_StopSpawn(int client, int args)
+{
+	StopSpawn();
 	return Plugin_Continue;
 }
 
@@ -221,6 +264,7 @@ void GetCvars()
 	g_iSiLimit = g_hSiLimit.IntValue;
 	g_iTeleportCheckTime = g_hTeleportCheckTime.IntValue;
 	g_iEnableSIoption = g_hEnableSIoption.IntValue;
+	g_bAddDamageToSmoker = g_hAddDamageToSmoker.BoolValue;
 	if(g_hAllChargerMode.BoolValue){
 		TweakSettings();
 	}
@@ -236,6 +280,51 @@ public Action MaxSpecialsSet(Handle timer)
 // *********************
 //		    事件
 // *********************
+/* 玩家受伤,增加对smoker得伤害 */
+public void Event_PlayerHurt(Event event, const char[] name, bool dont_broadcast)
+{
+	if(g_bAddDamageToSmoker){
+		int victim = GetClientOfUserId(GetEventInt(event, "userid"));
+		int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
+		int damage = GetEventInt(event, "dmg_health");
+		int eventhealth = GetEventInt(event, "health");
+		int AddDamage = 0;
+		if (IsValidSurvivor(attacker) && IsInfectedBot(victim) && GetEntProp(victim, Prop_Send, "m_zombieClass") == 1)
+		{
+			if( GetEntPropEnt(victim, Prop_Send, "m_tongueVictim") > 0 )
+			{
+				AddDamage = damage * 5;
+			}
+			int health = eventhealth - AddDamage;
+			if (health < 1)
+			{
+				health = 0;
+			}
+			SetEntityHealth(victim, health);
+			SetEventInt(event, "health", health);
+		}
+	}
+}
+
+public void StopSpawn(){
+	if (g_hTeleHandle != INVALID_HANDLE)
+	{
+		delete g_hTeleHandle;
+		g_hTeleHandle = INVALID_HANDLE;
+	}
+	g_bIsLate = false;
+	g_iSpawnMaxCount = 0;
+	// 从 ArrayList 末端往前判断删除时钟，如果从前往后，因为 ArrayList 会通过前移后面的索引来填补前面擦除的空位，导致有时钟句柄无法擦除
+	for (int hTimerHandle = aThreadHandle.Length - 1; hTimerHandle >= 0; hTimerHandle--)
+	{
+		KillTimer(aThreadHandle.Get(hTimerHandle));
+		aThreadHandle.Erase(hTimerHandle);
+	}
+	aThreadHandle.Clear();
+	aSpawnQueue.Resize(1);
+	g_iQueueIndex = 0;
+}
+
 public void evt_RoundStart(Event event, const char[] name, bool dontBroadcast)
 {
 	if (g_hTeleHandle != INVALID_HANDLE)
@@ -459,12 +548,43 @@ void ReachedLimit()
 	{
 		for (int i = 1; i <= 6; i++)
 		{
-			if (!HasReachedLimit(i))
+			if (CheckSIOption(i) && !HasReachedLimit(i))
 			{
 				aSpawnQueue.Set(0, i, 0, false);
 			}
 		}
 	}
+}
+
+public int CheckSIOption(int type){
+    switch (type)
+    {
+        case 1:
+        {
+            return 1 << 0 & g_iEnableSIoption;
+        }
+        case 2:
+        {
+            return 1 << 1 & g_iEnableSIoption;
+        }
+        case 3:
+        {
+            return 1 << 2 & g_iEnableSIoption;
+        }
+        case 4:
+        {
+            return 1 << 3 & g_iEnableSIoption;
+        }
+        case 5:
+        {
+            return 1 << 4 & g_iEnableSIoption;
+        }
+        case 6:
+        {
+            return 1 << 5 & g_iEnableSIoption;
+        }
+    }
+    return 0;
 }
 
 
@@ -1241,17 +1361,17 @@ stock int getArrayHunterAndChargetNum(){
 // 返回在场特感数量，根据 z_%s_limit 限制每种特感上限
 int IsBotTypeNeeded()
 {
+	GetSiLimit();
 	if(g_hAllChargerMode.BoolValue){
 		return 6;
 	}
 	if(g_hAllHunterMode.BoolValue){
 		return 3;
 	}
-	GetSiLimit();
 	int iType = GetRandomInt(1, 6);
 	if (iType == 1)
 	{
-		if ((ENABLE_SMOKER & g_iEnableSIoption) && (g_ArraySIlimit[iType - 1] > 0))
+		if (CheckSIOption(iType) && (g_ArraySIlimit[iType - 1] > 0))
 		{
 //			iSmokerLimit++;
 			return 1;
@@ -1263,7 +1383,7 @@ int IsBotTypeNeeded()
 	}
 	else if (iType == 2)
 	{
-		if ((ENABLE_BOOMER & g_iEnableSIoption) && (g_ArraySIlimit[iType - 1] > 0) && (getArrayHunterAndChargetNum() > (g_iSiLimit/4 +1)))
+		if (CheckSIOption(iType) && (g_ArraySIlimit[iType - 1] > 0) && (getArrayHunterAndChargetNum() > (g_iSiLimit/4 +1)))
 		{
 				return 2;
 		}
@@ -1274,7 +1394,7 @@ int IsBotTypeNeeded()
 	}
 	else if (iType == 3)
 	{
-		if ((ENABLE_HUNTER & g_iEnableSIoption) && (g_ArraySIlimit[iType - 1] > 0))
+		if (CheckSIOption(iType) && (g_ArraySIlimit[iType - 1] > 0))
 		{
 		//	iHunterLimit++;
 			return 3;
@@ -1286,7 +1406,7 @@ int IsBotTypeNeeded()
 	}
 	else if (iType == 4)
 	{
-		if ((ENABLE_SPITTER & g_iEnableSIoption) && (g_ArraySIlimit[iType - 1] > 0) && (getArrayHunterAndChargetNum() > (g_iSiLimit/4 +1)))
+		if (CheckSIOption(iType) && (g_ArraySIlimit[iType - 1] > 0) && (getArrayHunterAndChargetNum() > (g_iSiLimit/4 +1)))
 		{
 			//	iSpitterLimit++;
 			return 4;
@@ -1298,7 +1418,7 @@ int IsBotTypeNeeded()
 	}
 	else if (iType == 5)
 	{
-		if ((ENABLE_JOCKEY & g_iEnableSIoption) && (g_ArraySIlimit[iType - 1] > 0))
+		if (CheckSIOption(iType) && (g_ArraySIlimit[iType - 1] > 0))
 		{
 			//iJockeyLimit++;
 			return 5;
@@ -1310,7 +1430,7 @@ int IsBotTypeNeeded()
 	}
 	else if (iType == 6)
 	{
-		if ((ENABLE_CHARGER & g_iEnableSIoption) && (g_ArraySIlimit[iType - 1] > 0))
+		if (CheckSIOption(iType) && (g_ArraySIlimit[iType - 1] > 0))
 		{
 			//iChargerLimit++;
 			return 6;

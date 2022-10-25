@@ -23,7 +23,7 @@
 
 ## **已知问题:**
 * 小刀为TLS更新前的原版小刀
-* 对抗原生的更换队伍不能用，使用join.smx插件进行换队(!inf !infected 感染 !jg !join 生还 !spec !afk旁观）
+* ~~对抗原生的更换队伍不能用，使用join.smx插件进行换队(!inf !infected 感染 !jg !join 生还 !spec !afk旁观）~~ 已解决
 	
 ## **Credits:**
 
