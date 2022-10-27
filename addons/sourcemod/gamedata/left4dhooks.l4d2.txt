@@ -656,11 +656,34 @@
 				}
 			}
 
+			"CSquirrelVM::GetValue"
+			{
+				"offset"		"CSquirrelVM::GetValue"
+				"hooktype"		"raw"
+				"return"		"bool"
+				"this"			"ignore"
+				"arguments"
+				{
+					"hScope"
+					{
+						"type"	"int"
+					}
+					"pszKey"
+					{
+						"type"	"charptr"
+					}
+					"pValue"
+					{
+						"type"	"objectptr"
+					}
+				}
+			}
+
 			"L4DD::CTerrorGameRules::HasConfigurableDifficultySetting"
 			{
 				"signature"		"CTerrorGameRules::HasConfigurableDifficultySetting"
 				"callconv"		"thiscall"
-				"return"		"int"
+				"return"		"bool"
 				"this"			"ignore"
 			}
 
@@ -1503,6 +1526,20 @@
 				"read" "0"
 			}
 
+			"L4DD::ScriptVM"
+			{
+				"windows"
+				{
+					"signature" "CDirector::GetScriptValueFloat"
+					"read" "19"
+				}
+				"linux"
+				{
+					"signature" "g_pScriptVM"
+				}
+				"read" "0"
+			}
+
 			"VanillaModeAddress"
 			{
 				"windows"
@@ -1697,6 +1734,12 @@
 				"linux"		"1400"
 			}
 
+			"CSquirrelVM::GetValue"
+			{
+				"windows"	"37"
+				"linux"		"36"
+			}
+
 			/* Offset into CTerrorPlayer
 			 * Is this right? How do we find it?
 			 */
@@ -1704,6 +1747,13 @@
 			{
 				"windows"	"11308"
 				"linux"		"11256"
+			}
+
+			// Can be found from "CDirector::GetScriptScope(CDirector::ScriptLevels_t)"
+			"m_iszScriptId"
+			{
+				"windows"	"968"
+				"linux"		"968"
 			}
 
 			"m_rescueCheckTimer"
@@ -2568,6 +2618,24 @@
 				/* Search "Couldn't find a %s Spawn position in %d tries\n", some calls below */
 			}
 
+			/**
+			* IsVisibleToPlayer(Vector const&, CBasePlayer *, int, int, float, CBaseEntity const*, TerrorNavArea **, bool *)
+			*
+			* Thanks Psyk0tik help
+			* How to find on Windows:
+			* 1. Search for the "Tank/Witch threat spawn: No non-visible valid areas between threat area and goal area! Choosing random area.\n" string.
+			* 2. The string can only be found in "CDirector::OnThreatEncountered".
+			* 3. The function "CDirector::OnThreatEncountered" calls "CDirectorTacticalServices::IsSpawnLocationVisibleToTeam" with the values "2" and "3" passed to it.
+			* 4. The last function call in "CDirectorTacticalServices::IsSpawnLocationVisibleToTeam" should be this function.
+			**/
+			"IsVisibleToPlayer"
+			{
+				"library"	"server"
+				"linux"		"@_Z17IsVisibleToPlayerRK6VectorP11CBasePlayeriifPK11CBaseEntityPP13TerrorNavAreaPb"
+				"windows"	"\x55\x8B\x2A\x81\xEC\x2A\x2A\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x8B\x2A\x2A\x8B\x2A\x2A\x53\x8B\x2A\x2A\x56\x8B\x2A\x2A\xC6"
+				/* 55 8B ? 81 EC ? ? ? ? A1 ? ? ? ? 33 ? 89 ? ? 8B ? ? 8B ? ? 53 8B ? ? 56 8B ? ? C6 */
+			}
+
 			/*
 			*  CDirector::HasAnySurvivorLeftSafeArea(CDirector *this)
 			*/
@@ -2993,8 +3061,8 @@
 			{
 				"library"	"server"
 				"linux"		"@_ZN9CDirector14GetScriptValueEPKci"
-				"windows"	"\x55\x8B\xEC\x8B\x81\x2A\x2A\x2A\x2A\x83\xEC\x10\x83\xF8\xFF\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x8B\x45\x2A\x8B"
-				/* 55 8B EC 8B 81 ? ? ? ? 83 EC 10 83 F8 FF ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? 8B 45 ? 8B */
+				"windows"	"\x55\x8B\xEC\x8B\x81\x2A\x2A\x2A\x2A\x83\xEC\x10\x83\xF8\xFF\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x8B\x2A\x2A\x8B\x2A\x5D"
+				/* 55 8B EC 8B 81 ? ? ? ? 83 EC 10 83 F8 FF ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? 8B ? ? 8B ? 5D */
 			}
 
 			/*
@@ -3031,6 +3099,13 @@
 				"linux"		"@_ZN9CDirector14GetScriptValueEPKcS1_Pci"
 				"windows"	"\x55\x8B\xEC\x8B\x81\x2A\x2A\x2A\x2A\x83\xEC\x2A\x56\x8B"
 				/* 55 8B EC 8B 81 ? ? ? ? 83 EC ? 56 8B */
+			}
+
+			// The g_pScriptVM pointer
+			"g_pScriptVM"
+			{
+				"library"	"server"
+				"linux"		"@g_pScriptVM"
 			}
 
 			/*
@@ -4104,6 +4179,18 @@
 				"linux"		"@_ZN13CTerrorPlayer10CullZombieEv"
 				"windows"	"\x55\x8B\xEC\x83\xEC\x2A\x56\x8B\xF1\x8B\x0D\x2A\x2A\x2A\x2A\x57\x56\xE8"
 				/* 55 8B EC 83 EC ? 56 8B F1 8B 0D ? ? ? ? 57 56 E8 */
+			}
+
+			/*
+			* CTerrorPlayer::CleanupPlayerState(CTerrorPlayer *this)
+			*/
+			"CTerrorPlayer::CleanupPlayerState"
+			{
+				"library"	"server"
+				"linux"		"@_ZN13CTerrorPlayer18CleanupPlayerStateEv"
+				"windows"	"\x2A\x2A\x2A\x2A\x2A\x2A\x83\x2A\x2A\x83\x2A\x2A\x55\x8B\x2A\x2A\x89\x2A\x2A\x2A\x8B\x2A\x0F\x2A\x2A\x83\x2A\x2A\x56\x8B\x2A\xC7"
+				/* ? ? ? ? ? ? 83 ? ? 83 ? ? 55 8B ? ? 89 ? ? ? 8B ? 0F ? ? 83 ? ? 56 8B ? C7 */
+				/* Search "Tongue letting go on death." the function with "Player.Heartbeat" at the bottom */
 			}
 
 			/*

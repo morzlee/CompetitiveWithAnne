@@ -33,12 +33,6 @@ public Action RoundStartTimer(Handle timer)
 
 public Action RemoveKits()
 {
-	char mapname[16];
-	GetCurrentMap(mapname, sizeof(mapname));
-	if (strcmp(mapname, "c5m5_bridge") == 0 || strcmp(mapname, "c13m4_cutthroatcreek") == 0)
-	{
-		ServerCommand("sm_cvar z_common_limit 0");
-	}
 	for (int entity = 1; entity <= GetEntityCount(); entity++)
 	{
 		if (IsValidEntity(entity) && IsValidEdict(entity))

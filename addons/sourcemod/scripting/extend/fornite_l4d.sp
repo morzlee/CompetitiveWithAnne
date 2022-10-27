@@ -22,6 +22,7 @@
 #undef REQUIRE_PLUGIN
 #include <adminmenu>
 
+
 #pragma newdecls required
 
 
@@ -296,6 +297,20 @@ public void OnMapStart()
 	PrecacheSound("kodua/fortnite_emotes/eastern_bloc_musc_setup_d.mp3");//ok
 	PrecacheSound("kodua/fortnite_emotes/athena_emote_hot_music.mp3");//ok
 	
+}
+
+/**
+ * Called before the live countdown starts
+ */
+forward void OnRoundLiveCountdownPre();
+
+//倒计时开始前所有人停止跳舞
+public void OnRoundLiveCountdownPre(){
+	for(int i = 1; i <= MaxClients; i++){
+		if(IsValidClient(i)){
+			StopEmote(i);
+		}
+	}
 }
 
 //玩家切换队伍或者闲置

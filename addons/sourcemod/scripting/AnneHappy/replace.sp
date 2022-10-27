@@ -55,6 +55,7 @@ public Action ReplaceKits()
 			}
 		}
 	}
+	return Plugin_Continue;
 }
 
 void ReplaceItem(int entity)

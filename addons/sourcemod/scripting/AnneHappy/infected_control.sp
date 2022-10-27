@@ -8,7 +8,7 @@
 #undef REQUIRE_PLUGIN
 #include <ai_smoker_new>
 #include <si_target_limit>
-//#include <l4d2_saferoom_detect>
+
 
 #define CVAR_FLAG FCVAR_NOTIFY
 #define TEAM_SURVIVOR 2
@@ -20,7 +20,7 @@
 #define NAV_MESH_HEIGHT 20.0
 #define PLAYER_HEIGHT 72.0
 #define PLAYER_CHEST 45.0
-#define GAMEDATA "anne_si_spawn"
+
 // 启用特感类型
 #define ENABLE_SMOKER			(1 << 0)		
 #define ENABLE_BOOMER			(1 << 1)		
@@ -106,8 +106,7 @@ bool
 	g_bTargetSystemAvailable = false;	//目标选择插件是否存在
 // Handle
 Handle 
-	g_hTeleHandle = INVALID_HANDLE, 	//传送sdk Handle
-	g_hSDKIsVisibleToPlayer;			//是否被看见SDK实现（后续会用leftdhooks实现，不再需要在本插件增加签名）
+	g_hTeleHandle = INVALID_HANDLE; 	//传送sdk Handle
 // ArrayList
 ArrayList 
 	aThreadHandle, 						//刷特线程
@@ -127,7 +126,7 @@ public void OnLibraryRemoved(const char[] name)
 }
 public void OnPluginStart()
 {
-	Init();
+	//Init();
 	// CreateConVar
 	g_hSpawnDistanceMin = CreateConVar("inf_SpawnDistanceMin", "250.0", "特感复活离生还者最近的距离限制", CVAR_FLAG, true, 0.0);
 	g_hSpawnDistanceMax = CreateConVar("inf_SpawnDistanceMax", "1500.0", "特感复活离生还者最远的距离限制", CVAR_FLAG, true, g_hSpawnDistanceMin.FloatValue);
@@ -176,34 +175,6 @@ public void OnPluginStart()
 	// Debug
 	RegAdminCmd("sm_startspawn", Cmd_StartSpawn, ADMFLAG_ROOT, "管理员重置刷特时钟");
 	RegAdminCmd("sm_stopspawn", Cmd_StopSpawn, ADMFLAG_ROOT, "管理员重置刷特时钟");
-}
-
-void Init()
-{
-	GameData hGameData = new GameData(GAMEDATA);
-	if (hGameData == null)
-		SetFailState("Failed to load \"%s.txt\" gamedata.", GAMEDATA);
-
-
-	// IsVisibleToPlayer(Vector const&, CBasePlayer *, int, int, float, CBaseEntity const*, TerrorNavArea **, bool *);
-	// SDKCall(g_hSDKIsVisibleToPlayer, fTargetPos, i, 2, 3, 0.0, 0, pArea, true);
-	StartPrepSDKCall(SDKCall_Static);
-	if (!PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "IsVisibleToPlayer"))
-		SetFailState("Failed to find signature: IsVisibleToPlayer");
-	PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);									// 目标点位
-	PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);								// 客户端
-	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);								// 客户端团队
-	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);								// 目标点位团队, 如果为0将考虑客户端的角度
-	PrepSDKCall_AddParameter(SDKType_Float, SDKPass_Plain);										// 不清楚
-	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);								// 不清楚
-	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Pointer);							// 目标点位 NavArea 区域
-	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Pointer);									// 如果为 false，将自动获取目标点位的 NavArea (GetNearestNavArea)
-	PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_Plain);
-	g_hSDKIsVisibleToPlayer = EndPrepSDKCall();
-	if (g_hSDKIsVisibleToPlayer == null)
-		SetFailState("Failed to create SDKCall: IsVisibleToPlayer");
-
-	delete hGameData;
 }
 
 public void OnPluginEnd() {
@@ -631,7 +602,7 @@ stock void print_type(int iType,float SpawnDistance){
 	FormatTime(sTime, sizeof(sTime), "%I-%M-%S", GetTime()); 
 	if (iType >= 1 && iType <=6)
 	{
-			Debug_Print("%s: 生成一只%s，当前%s数量：%d,特感总数量 %d,找位最大单位距离：%f", sTime, InfectedName[iType], g_iSINum[iType -1], g_iTotalSINum, SpawnDistance);
+		Debug_Print("%s: 生成一只%s，当前%s数量：%d,特感总数量 %d,找位最大单位距离：%f", sTime, InfectedName[iType], InfectedName[iType], g_iSINum[iType -1], g_iTotalSINum, SpawnDistance);
 	}
 }
 
@@ -800,7 +771,7 @@ stock bool PlayerVisibleTo(float targetposition[3], bool IsTeleport = false)
 		{
 			//传送的时候无视倒地或者挂边生还者得实现
 			if(IsTeleport && IsClientIncapped(client)){
-				if(g_bIgnoreIncappedSurvivorSight){
+				if(!g_bIgnoreIncappedSurvivorSight){
 					int sum = 0;
 					float temp[3];
 					for(int i = 0; i < MaxClients; i++){
@@ -878,34 +849,40 @@ stock bool PlayerVisibleToSDK(float targetposition[3], bool IsTeleport = false){
 	float position[3];
 	fTargetPos = targetposition;
 	fTargetPos[2] += 62.0; //眼睛位置
-	Address pArea = L4D_GetNearestNavArea(targetposition, 120.0, false, false, false, 3);
+
+	//计算该位置是不是和所有人都相隔大于g_fSpawnDistanceMax
+	int count = 0, skipcount = 0;
 
 	for (int client = 1; client <= MaxClients; client++)
 	{
-		//计算该位置是不是和所有人都相隔大于g_fSpawnDistanceMax
-		int count = 0;
 		if (IsClientInGame(client) && GetClientTeam(client) == 2 && IsPlayerAlive(client))
 		{
 			GetClientEyePosition(client, position);
 			//传送的时候无视倒地或者挂边生还者得实现
 			if(IsTeleport && IsClientIncapped(client)){
-				int sum = 0;
-				float temp[3];
-				for(int i = 1; i <= MaxClients; i++){
-					if(i != client && IsValidSurvivor(i) && !IsClientIncapped(i)){
-						GetClientAbsOrigin(i, temp);
-						//倒地生还者500范围内已经没有正常生还者，掠过这个人的视线判断
-						if(GetVectorDistance(temp, position) < 500.0){
-							sum ++;
+				if(!g_bIgnoreIncappedSurvivorSight){
+					int sum = 0;
+					float temp[3];
+					for(int i = 1; i <= MaxClients; i++){
+						if(i != client && IsValidSurvivor(i) && !IsClientIncapped(i)){
+							GetClientAbsOrigin(i, temp);
+							//倒地生还者500范围内已经没有正常生还者，掠过这个人的视线判断
+							if(GetVectorDistance(temp, position) < 500.0){
+								sum ++;
+							}
 						}
-					}
-				}			
-				if(sum == 0){
-					Debug_Print("Teleport方法，目标位置已经不能被正常生还者所看到");
-					continue;
+					}			
+					if(sum == 0){
+						Debug_Print("Teleport方法，目标位置已经不能被正常生还者所看到");
+						skipcount++;
+						continue;
+					}else{
+						Debug_Print("Teleport方法，目标位置依旧能被正常生还者看到，sum为：%d", sum);
+					}	
 				}else{
-					Debug_Print("Teleport方法，目标位置依旧能被正常生还者看到，sum为：%d", sum);
-				}			
+					skipcount++;
+					continue;
+				}		
 			}
 			//太近直接返回看见
 			if(GetVectorDistance(targetposition, position) < g_fSpawnDistanceMin)
@@ -916,16 +893,16 @@ stock bool PlayerVisibleToSDK(float targetposition[3], bool IsTeleport = false){
 			if(GetVectorDistance(targetposition, position) >= g_fSpawnDistanceMax)
 			{
 				count++;
-				if(count >= g_iSurvivorNum){
+				if(count >= (g_iSurvivorNum - skipcount)){
 					return false;
 				}
 
 			}
-			if (SDKCall(g_hSDKIsVisibleToPlayer, targetposition, client, 2, 3, 0.0, 0, pArea, true))
+			if (L4D2_IsVisibleToPlayer(client, 2, 3, 0, targetposition))
 			{
 				return true;
 			}
-			if (SDKCall(g_hSDKIsVisibleToPlayer, fTargetPos, client, 2, 3, 0.0, 0, pArea, true))
+			if (L4D2_IsVisibleToPlayer(client, 2, 3, 0, fTargetPos))
 			{
 				return true;
 			}
