@@ -3,6 +3,10 @@
 #include <sdktools>
 #include <colors>
 #define VICTIM_CHECK_INTERVAL 0.1
+#define DEBUG 1
+#if (DEBUG)
+char sLogFile[PLATFORM_MAX_PATH] = "addons/sourcemod/logs/jockey_unteleport.txt";
+#endif
 
 enum L4D2Team
 {
@@ -153,7 +157,8 @@ bool isPrevPositionEmpty(){
 
 void TeleportToPreviousPosition(int victim){
 	TeleportEntity(victim, victimPrevPos, NULL_VECTOR, NULL_VECTOR);
-	CPrintToChatAll("{blue}[Jockey UnTeleport]{default} Jockey teleported a survivor, teleporting him to previous position.");
+	CPrintToChatAll("{blue}[虚空猴修复]{default} 传送回了被虚空猴传送了生还者.");
+	Debug_Print("虚空猴修复log: 传回位置为 %f %f %f", victimPrevPos[0], victimPrevPos[1], victimPrevPos[2]);
 }
 
 stock void TeleportToNearestSurvivor(int victim)
@@ -199,4 +204,19 @@ bool:IsIncapped(client)
 bool:IsPlayerLedged(client)
 {
 	return bool:(GetEntProp(client, Prop_Send, "m_isHangingFromLedge") | GetEntProp(client, Prop_Send, "m_isFallingFromLedge"));
+}
+
+stock void Debug_Print(char[] format, any ...)
+{
+	#if (DEBUG)
+	{
+		char sBuffer[512];
+		VFormat(sBuffer, sizeof(sBuffer), format, 2);
+		Format(sBuffer, sizeof(sBuffer), "[%s] %s", "DEBUG", sBuffer);
+	//	PrintToChatAll(sBuffer);
+		PrintToConsoleAll(sBuffer);
+		PrintToServer(sBuffer);
+		LogToFile(sLogFile, sBuffer);
+	}
+	#endif
 }

@@ -318,31 +318,6 @@ stock int GetSurvivorCount()
 
     return count;
 }
-/*
-//尸潮数量更改
-public Action Timer_MobChange(Handle timer)
-{
-    FindConVar("z_common_limit").SetInt(6 * GetSurvivorCount());
-    FindConVar("z_mega_mob_size").SetInt(9 * GetSurvivorCount());
-    FindConVar("z_mob_spawn_min_size").SetInt(4 * GetSurvivorCount());
-    FindConVar("z_mob_spawn_max_size").SetInt(4 * GetSurvivorCount());
-
-    return Plugin_Stop;
-}
-
-
-public void OnAutoConfigsBuffered()
-{
-	 char sMapConfig[128];
-	 GetCurrentMap(sMapConfig, sizeof(sMapConfig));
-     Format(sMapConfig, sizeof(sMapConfig), "cfg/sourcemod/map_cvars/%s.cfg", sMapConfig);
-     if (FileExists(sMapConfig, true))
-	 {
-        strcopy(sMapConfig, sizeof(sMapConfig), sMapConfig[4]);
-        ServerCommand("exec \"%s\"", sMapConfig);
-     }
-} 
-*/
 
 public Action OnNormalSound(int clients[64], int &numClients, char sample[PLATFORM_MAX_PATH], int &entity, int &channel, float &volume, int &level, int &pitch, int &flags)
 {
@@ -388,7 +363,7 @@ public Action L4D_OnFirstSurvivorLeftSafeArea()
 {
 	SetConVarString(FindConVar("mp_gamemode"), "coop");
 	SetBot(0,0);
-	SetGodMode(false);
+	//SetGodMode(false);
 	CreateTimer(0.5, Timer_AutoGive, _, TIMER_FLAG_NO_MAPCHANGE);
 	return Plugin_Stop;
 }
@@ -457,8 +432,7 @@ void ResetInventory()
 			{ 
 				DeleteInventoryItem(client, i);		
 			}
-			BypassAndExecuteCommand(client, "give", "pistol");
-			
+			BypassAndExecuteCommand(client, "give", "pistol");		
 		}
 	}		
 }

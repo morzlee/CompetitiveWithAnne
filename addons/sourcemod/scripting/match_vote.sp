@@ -151,7 +151,7 @@ bool FindConfigName(const char[] sConfig, char[] sName, const int iMaxLength)
 void MatchModeMenu(int iClient)
 {
 	Menu hMenu = new Menu(MatchModeMenuHandler);
-	hMenu.SetTitle("Select match mode:");
+	hMenu.SetTitle("选择要玩的模式:");
 
 	char sBuffer[64];
 	g_hModesKV.Rewind();
@@ -179,7 +179,7 @@ public int MatchModeMenuHandler(Menu menu, MenuAction action, int param1, int pa
 		if (g_hModesKV.JumpToKey(sInfo) && g_hModesKV.GotoFirstSubKey()) {
 			Menu hMenu = new Menu(ConfigsMenuHandler);
 
-			FormatEx(sBuffer, sizeof(sBuffer), "Select %s config:", sInfo);
+			FormatEx(sBuffer, sizeof(sBuffer), "选择 %s 配置:", sInfo);
 			hMenu.SetTitle(sBuffer);
 
 			do {
@@ -252,7 +252,7 @@ bool StartMatchVote(int iClient, const char[] sCfgName)
 		}
 
 		char sBuffer[64];
-		FormatEx(sBuffer, sizeof(sBuffer), "Load confogl '%s' config?", sCfgName);
+		FormatEx(sBuffer, sizeof(sBuffer), "加载 confogl '%s' 模式?", sCfgName);
 
 		g_hVote = CreateBuiltinVote(VoteActionHandler, BuiltinVoteType_Custom_YesNo, BuiltinVoteAction_Cancel | BuiltinVoteAction_VoteEnd | BuiltinVoteAction_End);
 		SetBuiltinVoteArgument(g_hVote, sBuffer);
@@ -286,9 +286,13 @@ public void MatchVoteResultHandler(Handle vote, int num_votes, int num_clients, 
 	for (int i = 0; i < num_items; i++) {
 		if (item_info[i][BUILTINVOTEINFO_ITEM_INDEX] == BUILTINVOTES_VOTE_YES) {
 			if (item_info[i][BUILTINVOTEINFO_ITEM_VOTES] > (num_votes / 2)) {
-				DisplayBuiltinVotePass(vote, "Matchmode Loaded");
+				DisplayBuiltinVotePass(vote, "模式加载");
+				//PrintToConsoleAll("%s", g_sCfg);
+				for(int j = 0; j < strlen(g_sCfg); j++){
+					g_sCfg[j] = CharToLower(g_sCfg[j]);
+				}
+				//PrintToConsoleAll("%s", g_sCfg);
 				ServerCommand("sm_forcematch %s", g_sCfg);
-
 				return;
 			}
 		}

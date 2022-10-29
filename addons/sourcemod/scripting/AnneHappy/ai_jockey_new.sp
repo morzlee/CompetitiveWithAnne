@@ -27,7 +27,7 @@ ConVar g_hBhopSpeed, g_hStartHopDistance, g_hJockeyStumbleRadius;
 // Ints
 int g_iStartHopDistance, g_iState[MAXPLAYERS + 1][8], g_iJockeyStumbleRadius;
 // Float
-float g_fJockeyBhopSpeed;
+float g_fJockeyBhopSpeed, g_fDelay[MAXPLAYERS + 1][8];
 // Bools
 bool g_bHasBeenShoved[MAXPLAYERS + 1], g_bCanLeap[MAXPLAYERS + 1];
 
@@ -35,6 +35,11 @@ bool g_bHasBeenShoved[MAXPLAYERS + 1], g_bCanLeap[MAXPLAYERS + 1];
 #define TEAM_INFECTED 3
 #define ZC_JOCKEY 5
 #define FL_JUMPING 65922
+// JOCKEY
+#define JOCKEYJUMPDELAY 2.0
+#define JOCKEYJUMPNEARDELAY 0.1
+#define JOCKEYJUMPRANGE 250.0
+#define JOCKEYMINSPEED 130.0
 
 public void OnPluginStart()
 {
@@ -85,11 +90,11 @@ public Action OnPlayerRunCmd(int jockey, int &buttons, int &impulse, float vel[3
 			float fBuffer[3] = {0.0}, fTargetPos[3] = {0.0}, fDistance = NearestSurvivorDistance(jockey);
 			GetClientAbsOrigin(iTarget, fTargetPos);
 			fBuffer = UpdatePosition(jockey, iTarget, g_fJockeyBhopSpeed);
-			if (fCurrentSpeed > 130.0 && fDistance < float(g_iStartHopDistance))
+			if (fCurrentSpeed > JOCKEYMINSPEED && fDistance < float(g_iStartHopDistance))
 			{
 				if (iFlags & FL_ONGROUND)
 				{
-					if (fDistance < 250.0)
+					if (fDistance < JOCKEYJUMPRANGE && DelayExpired(jockey, 0, JOCKEYJUMPNEARDELAY) || DelayExpired(jockey, 0, JOCKEYJUMPDELAY))
 					{
 						// 在地上的情况，首先 GetState 如果状态不是跳跃状态，则按跳跃键，设置为跳跃状态，如果在地上且是跳跃状态，且目标正在看着 jockey，则向上 50 度抬起视野再攻击，设置状态为攻击
 						if (GetState(jockey, 0) == IN_JUMP)
@@ -127,6 +132,8 @@ public Action OnPlayerRunCmd(int jockey, int &buttons, int &impulse, float vel[3
 							int fLeapCooldown = GetConVarInt(FindConVar("z_jockey_leap_again_timer"));
 							CreateTimer(float(fLeapCooldown), Timer_LeapCoolDown, jockey, TIMER_FLAG_NO_MAPCHANGE);
 						}
+						DelayStart(jockey, 0);
+						return Plugin_Changed;
 					}
 					else
 					{
@@ -376,4 +383,14 @@ void ClientPush(int client, float fForwardVec[3])
 	GetEntPropVector(client, Prop_Data, "m_vecAbsVelocity", fCurVelVec);
 	AddVectors(fCurVelVec, fForwardVec, fCurVelVec);
 	TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, fCurVelVec);
+}
+
+void DelayStart(int client, int number)
+{
+	g_fDelay[client][number] = GetGameTime();
+}
+
+bool DelayExpired(int client, int number, float delay)
+{
+	return view_as<bool>(GetGameTime() - g_fDelay[client][number] > delay);
 }

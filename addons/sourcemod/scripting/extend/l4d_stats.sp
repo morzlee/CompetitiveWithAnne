@@ -136,6 +136,7 @@ new bool:PanicEventIncap = false;
 new bool:CampaignOver = false;
 new bool:WitchExists = false;
 new bool:WitchDisturb = false;
+new bool:AnneValidGame = true;
 
 // Anti-Stat Whoring vars
 new CurrentPoints[MAXPLAYERS + 1];
@@ -410,6 +411,11 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	SuccessGetPlayerTime = CreateGlobalForward("l4dstats_SuccessGetPlayerTime", ET_Ignore,Param_Cell);
 
 	return APLRes_Success;
+}
+forward void OnValidValveChange(bool IsValid);
+
+public void OnValidValveChange(bool IsValid){
+	AnneValidGame = IsValid;
 }
 
 
@@ -993,6 +999,7 @@ public OnPluginStart()
 	}
 }
 
+
 public OnConfigsExecuted()
 {
 	GetConVarString(cvar_DbPrefix, DbPrefix, sizeof(DbPrefix));
@@ -1276,6 +1283,7 @@ public OnMapStart()
 	CurrentGamemodeID = GetCurrentGamemodeID();
 	SetCurrentGamemodeName();
 	ResetVars();
+	AnneValidGame = true;
 }
 
 // Init player on connect, and update total rank and client rank.
@@ -1585,6 +1593,7 @@ public Action:event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 	MapTimingStartTime = 0.0;
 	MapTimingBlocked = false;
 	Isstart=true;
+	AnneValidGame = true;
 	ResetRankChangeCheck();
 }
 
@@ -1784,17 +1793,13 @@ public Action:timer_InfectedDamageCheck(Handle:timer, any:data)
 		{
 			if (InfectedDamage > 1)
 				StatsPrintToChat(data, "你获得了 \x04%i \x01点分数 by  给生还者造成了 \x04%i \x01 分的伤害", Score, DamageCounter);
-			else
-				StatsPrintToChat(data, "就知道摸鱼，不能打点伤害？");
 		}
 		else if (Mode == 3)
 		{
 			decl String:Name[MAX_LINE_WIDTH];
 			GetClientName(data, Name, sizeof(Name));
 			if (InfectedDamage > 1)
-				StatsPrintToChatAll("\x05%s \x01has earned \x04%i \x01points for doing \x04%i \x01points of damage to the Survivors!", Name, Score, DamageCounter);
-			else
-				StatsPrintToChatAll("\x05%s \x01就知道摸鱼, 又打了 \x04%i \x01伤害", Name,  DamageCounter);
+				StatsPrintToChatAll("\x05%s \x01获得了 \x04%i \x01点分数 by  给生还者造成了 \x04%i \x01 分的伤害!", Name, Score, DamageCounter);
 		}
 	}
 }
@@ -4318,13 +4323,16 @@ public Action:event_CampaignWin(Handle:event, const String:name[], bool:dontBroa
 			}
 		}
 	}
-	int inf= GetAnneInfectedNumber();
-	if(inf>4)
-		Score=RoundToFloor(Score+Score*(inf-4)*0.1);
-	else if(inf>6)
-		Score=RoundToFloor(Score+Score*(inf-4)*0.2);
-	else if(inf>8)
-		Score=RoundToFloor(Score+Score*(inf-4)*0.3);
+	if((AnneMultiPlayerMode() || SinglePlayerMode()) && AnneValidGame){
+		int inf= GetAnneInfectedNumber();
+		if(inf>4)
+			Score=RoundToFloor(Score+Score*(inf-4)*0.1);
+		else if(inf>6)
+			Score=RoundToFloor(Score+Score*(inf-4)*0.2);
+		else if(inf>8)
+			Score=RoundToFloor(Score+Score*(inf-4)*0.3);
+	}
+
 	if (Mode && Score > 0)
 	{
 		StatsPrintToChatTeam(TEAM_SURVIVORS, "\x03所有幸存者 \x01获得了 \x04%i \x01分 by  \x05%i 幸存者\x01完成了 \x04救援关 \x01!", Score, SurvivorCount);
@@ -9736,14 +9744,16 @@ public CheckSurvivorsWin()
 				TriggerTimer(TimerRankChangeCheck[i], true);
 		}
 	}
-	
-	int inf = GetAnneInfectedNumber();
-	if(inf>4)
-		Score=RoundToFloor(Score+Score*(inf-4)*0.2);
-	else if(inf>6)
-		Score=RoundToFloor(Score+Score*(inf-4)*0.3);
-	else if(inf>8)
-		Score=RoundToFloor(Score+Score*(inf-4)*0.4);
+	if((AnneMultiPlayerMode() || SinglePlayerMode()) && AnneValidGame){
+		int inf = GetAnneInfectedNumber();
+		if(inf>4)
+			Score=RoundToFloor(Score+Score*(inf-4)*0.2);
+		else if(inf>6)
+			Score=RoundToFloor(Score+Score*(inf-4)*0.3);
+		else if(inf>8)
+			Score=RoundToFloor(Score+Score*(inf-4)*0.4);
+	}
+
 	if (Mode && Score > 0)
 	{
 		StatsPrintToChatTeam(TEAM_SURVIVORS, "\x03所有幸存者 \x01获得 \x04%i \x01分 by \x05%i 死亡到达安全门!", Score, Deaths);

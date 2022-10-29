@@ -13,7 +13,7 @@
 	"3"
 	{
 		"type"		"S"
-		"text"		"{GREEN}!away{LIGHTGREEN} 旁观 {GREEN}!slots{LIGHTGREEN} 开位 {GREEN}!rpg{LIGHTGREEN} 娱乐商店"
+		"text"		"{GREEN}!away{LIGHTGREEN} 旁观 {GREEN}!join{LIGHTGREEN} 加入生还者 {GREEN}!slots{LIGHTGREEN} 开位 {GREEN}!xx{LIGHTGREEN} 模式查询 \n{GREEN}!mapvote{LIGHTGREEN} 三方图 {GREEN}!spechudon{LIGHTGREEN} 打开旁观hud"
 	}
 	"4"
 	{
@@ -28,7 +28,7 @@
 	"6"
 	{
 		"type"		"S"
-		"text"		"{GREEN}!tank !witch !boss{LIGHTGREEN} 查看boss {GREEN}!cur {LIGHTGREEN}查看当前进度"
+		"text"		"{GREEN}!tank{LIGHTGREEN} 查看boss {GREEN}!zs{LIGHTGREEN} 自杀  {GREEN}!rpg{LIGHTGREEN} 购物商店 {GREEN}!xx{LIGHTGREEN} 模式查询 \n{GREEN}!ip{LIGHTGREEN} 查看电信服ip {GREEN}!web{LIGHTGREEN} 电信服网页"
 	}
 	"7"
 	{

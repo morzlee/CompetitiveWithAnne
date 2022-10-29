@@ -184,6 +184,8 @@ public Action Event_PlayerTeam(Handle event, const char[] name, bool dontBroadca
 		if(!IsFakeClient(target))
 		{
 			CreateTimer(0.5, Timer_CheckDetay2, target, TIMER_FLAG_NO_MAPCHANGE);
+		}else{
+			return Plugin_Handled;
 		}
 	}
 	//CreateTimer(0.1, Timer_MobChange, 0, TIMER_FLAG_NO_MAPCHANGE);

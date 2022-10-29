@@ -251,29 +251,6 @@
 			"message" "20秒"
 		}
 	}
-	"模式选择"
-	{
-		"sm_fm annehappy"
-		{
-			"message" "普通药役模式"
-		}
-		"sm_fm hunters"
-		{
-			"message" "1vHunter模式"
-		}
-		"sm_fm alone"
-		{
-			"message" "单人装B模式"
-		}
-		"sm_fm witchparty"
-		{
-			"message" "WitchParty模式"
-		}
-		"sm_fm allcharger"
-		{
-			"message" "牛牛冲刺大逃亡"
-		}
-	}
 	"特感最低生成距离"
 	{
 		"sm_cvar inf_SpawnDistanceMin 250.0"

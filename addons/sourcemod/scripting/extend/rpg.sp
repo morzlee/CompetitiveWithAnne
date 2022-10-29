@@ -93,15 +93,17 @@ public Plugin myinfo =
 	version = PLUGIN_VERSION,
 	url = "http://sb.trygek.com:18443"
 }
-/*
+
+Handle IsValid;
 //Startup
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
 	//API
 	RegPluginLibrary("rpg");
-	CreateNative("rpg_HaveOwnTags", Native_HaveOwnTags);
+	IsValid = CreateGlobalForward("OnValidValveChange", ET_Ignore, Param_Cell);
+	return APLRes_Success;
 }
-
+/*
 //API
 public int Native_HaveOwnTags(Handle plugin, int numParams)
 {
@@ -241,8 +243,11 @@ void ConVarChanged_Cvars(ConVar convar, const char[] oldValue, const char[] newV
 
 	if(IsStart)
 	{
-		PrintToChatAll("\x04[RANK]判断额外积分所需变量发生变化，此局无法获得额外积分");
+		PrintToChatAll("\x04[RANK]判断额外积分所需变量发生变化，此局无法获得额外积分, 过关也不奖励额外分数");
 		valid=false;
+		Call_StartForward(IsValid);//转发触发
+		Call_PushCell(false);//按顺序将参数push进forward传参列表里
+		Call_Finish();//转发结束
 	}
 	InfectedNumber=GetConVarInt(FindConVar("l4d_infected_limit"));
 	if(AllowBigGun.IntValue)
