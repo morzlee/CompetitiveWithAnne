@@ -157,7 +157,7 @@ bool isPrevPositionEmpty(){
 
 void TeleportToPreviousPosition(int victim){
 	TeleportEntity(victim, victimPrevPos, NULL_VECTOR, NULL_VECTOR);
-	CPrintToChatAll("{blue}[虚空猴修复]{default} 传送回了被虚空猴传送了生还者.");
+	CPrintToChatAll("{blue}[虚空猴修复]{default} 传送回了被虚空猴传送的%N.", victim);
 	Debug_Print("虚空猴修复log: 传回位置为 %f %f %f", victimPrevPos[0], victimPrevPos[1], victimPrevPos[2]);
 }
 

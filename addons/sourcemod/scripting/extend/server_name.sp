@@ -112,7 +112,7 @@ public void UpdateServerName(){
 		ReplaceString(FinalHostname, sizeof(FinalHostname), "{Confogl}","[牛牛冲刺]");
 		IsAnne = true;
 	}	
-	else if(StrContains(sReadyUpCfgName, "Hunters", false)!=-1)
+	else if(StrContains(sReadyUpCfgName, "1vHunters", false)!=-1)
 		{ReplaceString(FinalHostname, sizeof(FinalHostname), "{Confogl}","[HT训练]");IsAnne = true;}
 	else if(StrContains(sReadyUpCfgName, "WitchParty", false)!=-1)
 		{ReplaceString(FinalHostname, sizeof(FinalHostname), "{Confogl}","[女巫派对]");IsAnne = true;}

@@ -35,6 +35,11 @@
 - extend/chatlog.smx 数据库聊天记录插件
 - extend/l4d_hats.smx 插件，最新帽子插件修改版，增加了数据库功能和forward处理，无积分插件也能使用，但是需要自己配置好l4d_hats配置
 - extend/l4d2_item_hint.smx 标点插件，禁用了一部分功能，增加了光圈标点的聊天栏提示，也需要积分功能搭配限制，无积分插件也能使用
+- disabled/specrate.smx 旁观30tick插件，更改后4人旁观数以内，30w积分的玩家也能100tick旁观，超过4人旁观，除管理员外其他旁观玩家一律30tick
+- extendd/veterans.smx 时长检测插件，部分依赖于l4d_stats.smx插件的时长信息，能够自定义想玩游戏玩家的时长限制，不满足时长的，只能旁观，join.smx插件依赖这个插件提供是否是steamm组成员的信息
+- extend/join.smx 玩家加入离开提示，换队作用，motd展示功能（不是组员会有提示，需要veterans插件作为前置）
+
+
 	
 ## **感谢人员:**
 

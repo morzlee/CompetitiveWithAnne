@@ -29,6 +29,7 @@
 #include <colors>
 #undef REQUIRE_PLUGIN
 #include <veterans>
+#include <updater>
 
 #define IsValidClient(%1)		(1 <= %1 <= MaxClients && IsClientInGame(%1))
 #define IsValidAliveClient(%1)	(1 <= %1 <= MaxClients && IsClientInGame(%1) && IsPlayerAlive(%1))
@@ -41,20 +42,37 @@ public Plugin myinfo =
 	version = "1.0",
 	url = "https://github.com/fantasylidong/CompetitiveWithAnne"
 };
+#define UPDATE_URL    "http://home.trygek.com:8880/left4dead2/addons/sourcemod/Anne_Updater.txt"
 
-bool g_bGroupSystemAvailable = false;
+bool  g_bUpdateSystemAvailable = false, g_bGroupSystemAvailable = false;
 
 public void OnAllPluginsLoaded(){
 	g_bGroupSystemAvailable = LibraryExists("veterans");
+	g_bUpdateSystemAvailable = LibraryExists("updater");
+	if(g_bUpdateSystemAvailable){
+		Updater_AddPlugin(UPDATE_URL);
+		Updater_ForceUpdate();
+	}
 }
 public void OnLibraryAdded(const char[] name)
 {
     if ( StrEqual(name, "veterans") ) { g_bGroupSystemAvailable = true; }
+	else if(StrEqual(name, "updater"))
+	{
+		if(!g_bUpdateSystemAvailable)
+		{
+			g_bUpdateSystemAvailable = true;
+			Updater_AddPlugin(UPDATE_URL);
+			Updater_ForceUpdate();
+		}
+	}
 }
 public void OnLibraryRemoved(const char[] name)
 {
     if ( StrEqual(name, "veterans") ) { g_bGroupSystemAvailable = false; }
+	else if (StrEqual(name, "updater")){ g_bUpdateSystemAvailable = false; }
 }
+
 ConVar
 	hCvarMotdTitle,
 	hCvarMotdUrl,

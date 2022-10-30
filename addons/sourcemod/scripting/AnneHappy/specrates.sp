@@ -47,7 +47,7 @@ public OnPluginStart()
     sv_maxrate = FindConVar("sv_maxrate");
     sv_client_min_interp_ratio = FindConVar("sv_client_min_interp_ratio");
     sv_client_max_interp_ratio = FindConVar("sv_client_max_interp_ratio");
-    RegConsoleCmd("sm_rates", SetRates, "当你分数大于30w可以手动输入这个指令来设置旁观100tick");
+    RegConsoleCmd("sm_specrates", SetRates, "当你分数大于30w可以手动输入这个指令来设置旁观100tick");
     RegAdminCmd("sm_adminrates", AdminSetRates, ADMFLAG_GENERIC, "管理员手动提升100tick");
     HookEvent("player_team", OnTeamChange);
 }
@@ -63,7 +63,7 @@ public Action SetRates(int client, int args)
 	}
 	if( getSpecNum() > 4)
 	{
-		PrintToChat(client, "玩家超过8人无法设置100tick旁观速率");
+		PrintToChat(client, "旁观超过4人无法设置100tick旁观速率");
 		return Plugin_Handled;
 	}
 	AdjustRates(client);

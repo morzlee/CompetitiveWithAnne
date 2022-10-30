@@ -9,40 +9,14 @@
 #include <colors>
 #undef REQUIRE_PLUGIN
 #include <CreateSurvivorBot>
-#include <updater>
+
 
 #define CVAR_FLAGS			FCVAR_NOTIFY
 #define SCORE_DELAY_EMPTY_SERVER 3.0
 #define L4D_MAXHUMANS_LOBBY_OTHER 3
 #define IsValidClient(%1)		(1 <= %1 <= MaxClients && IsClientInGame(%1))
 #define IsValidAliveClient(%1)	(1 <= %1 <= MaxClients && IsClientInGame(%1) && IsPlayerAlive(%1))
-#define UPDATE_URL    "http://home.trygek.com:8880/left4dead2/addons/sourcemod/Anne_Updater.txt"
 
-bool  g_bUpdateSystemAvailable = false;
-
-public void OnAllPluginsLoaded(){
-	g_bUpdateSystemAvailable = LibraryExists("updater");
-	if(g_bUpdateSystemAvailable){
-		Updater_AddPlugin(UPDATE_URL);
-		Updater_ForceUpdate();
-	}
-}
-public void OnLibraryAdded(const char[] name)
-{
-	if (StrEqual(name, "updater"))
-    {
-        if(!g_bUpdateSystemAvailable)
-		{
-			g_bUpdateSystemAvailable = true;
-			Updater_AddPlugin(UPDATE_URL);
-			Updater_ForceUpdate();
-		}
-	}
-}
-public void OnLibraryRemoved(const char[] name)
-{
-	if (StrEqual(name, "updater")){ g_bUpdateSystemAvailable = false; }
-}
 
 
 enum ZombieClass

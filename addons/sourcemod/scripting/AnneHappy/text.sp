@@ -42,7 +42,8 @@ public void OnPluginStart()
 	HookConVarChange(g_hCvarPluginVersion, CvarPluginVersion);
 	CommonTime = GetConVarInt(g_hCvarInfectedTime);
 	CommonLimit = GetConVarInt(g_hCvarInfectedLimit);
-	TankBhop = GetConVarInt(g_hCvarTankBhop);
+	if(g_hCvarTankBhop != null)
+		TankBhop = GetConVarInt(g_hCvarTankBhop);
 	Weapon = GetConVarInt(g_hCvarWeapon);
 	RegConsoleCmd("sm_xx",InfectedStatus);
 	g_hCvarCoop = CreateConVar("coopmode", "0");
@@ -128,7 +129,8 @@ public void Cvar_InfectedLimit(ConVar convar, const char[] oldValue, const char[
 }
 public void CvarTankBhop(ConVar convar, const char[] oldValue, const char[] newValue)
 {
-	TankBhop = GetConVarInt(g_hCvarTankBhop);
+	if(g_hCvarTankBhop != null)
+		TankBhop = GetConVarInt(g_hCvarTankBhop);
 }
 
 public void CvarPluginVersion(ConVar convar, const char[] oldValue, const char[] newValue)
@@ -172,9 +174,14 @@ void printinfo(int client = 0, bool All = true){
 	//FormatTime(sBuffer, sizeof(sBuffer), "%Y/%m/%d");
 	char buffer[128];
 	char buffer2[128];
-	if(g_hCvarTankBhop != null)
+	if(g_hCvarTankBhop != null){
 		Format(buffer, sizeof(buffer), "\x03Tank连跳\x05[\x04%s\x05]", TankBhop > 0?"开启":"关闭");
-	Format(buffer, sizeof(buffer), "%s \x03武器\x05[\x04%s\x05]", buffer, Weapon > 0?(Weapon > 1?"Anne+":"Zone"):"Anne");
+		Format(buffer, sizeof(buffer), "%s \x03武器\x05[\x04%s\x05]", buffer, Weapon > 0?(Weapon > 1?"Anne+":"Zone"):"Anne");
+	}else
+	{
+		Format(buffer, sizeof(buffer), "\x03武器\x05[\x04%s\x05]",  Weapon > 0?(Weapon > 1?"Anne+":"Zone"):"Anne");
+	}
+		
 	if(PLUGIN_VERSION[0] == '\0')
 	GetConVarString(g_hCvarPluginVersion, PLUGIN_VERSION, sizeof(PLUGIN_VERSION));
 	Format(buffer, sizeof(buffer), "%s \x03特感\x05[\x04%i特%i秒\x05] \x03电信服\x05[\x04%s\x05]", buffer, CommonLimit, CommonTime, PLUGIN_VERSION);
