@@ -262,7 +262,7 @@ public void OnPluginEnd()
 
 	//Other
 	RemoveCustomServerTag("confogl");
-	RemoveCustomServerTag("hidden");
+	//RemoveCustomServerTag("hidden");
 }
 
 #if MODULE_MAPINFO || MODULE_REQMATCH || MODULE_SCOREMOD || MODULE_BOSSSPAWNING || MODULE_ITEMTRACKING

@@ -109,6 +109,7 @@ static void RM_Match_Load()
 	if (RM_DEBUG || IsDebugEnabled()) {
 		LogMessage("[%s] Match Load", RM_MODULE_NAME);
 	}
+	RemoveCustomServerTag("hidden");
 
 	if (!RM_bIsAMatchActive) {
 		RM_bIsAMatchActive = true;
@@ -223,6 +224,7 @@ static void RM_Match_Unload(bool bForced = false)
 
 	//PrintToChatAll("\x01[\x05Confogl\x01] Match mode unloaded!");
 	CPrintToChatAll("{blue}[{default}Confogl{blue}]{default} 比赛配置已卸载!");
+	AddCustomServerTag("hidden");
 
 	RM_hConfigFile_Off.GetString(sBuffer, sizeof(sBuffer));
 	ExecuteCfg(sBuffer);

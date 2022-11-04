@@ -50,7 +50,7 @@ public void OnPluginStart()
 	HookEvent("player_spawn", evt_PlayerSpawn, EventHookMode_Pre);
 	HookEvent("player_shoved", evt_PlayerShoved, EventHookMode_Pre);
 	//HookEvent("player_jump", evt_PlayerJump, EventHookMode_Pre);
-	HookEvent("jockey_ride", evt_JockeyRide);
+	HookEvent("jockey_ride", evt_JockeyRide, EventHookMode_Pre);
 	// AddChangeHook
 	g_hBhopSpeed.AddChangeHook(ConVarChanged_Cvars);
 	g_hStartHopDistance.AddChangeHook(ConVarChanged_Cvars);
@@ -76,6 +76,8 @@ public Action OnPlayerRunCmd(int jockey, int &buttons, int &impulse, float vel[3
 	if (IsAiJockey(jockey))
 	{
 		if(GetEntPropEnt(jockey, Prop_Send, "m_jockeyVictim") > 0)
+			return Plugin_Continue;
+		if (L4D_IsPlayerStaggering(jockey))
 			return Plugin_Continue;
 		float fSpeed[3] = {0.0}, fCurrentSpeed, fJockeyPos[3] = {0.0};
 		GetEntPropVector(jockey, Prop_Data, "m_vecVelocity", fSpeed);
@@ -244,6 +246,7 @@ void StumbleByStanders(int pinnedSurvivor, int pinner)
 		} 
 	}
 }
+
 
 bool IsPinned(int client)
 {

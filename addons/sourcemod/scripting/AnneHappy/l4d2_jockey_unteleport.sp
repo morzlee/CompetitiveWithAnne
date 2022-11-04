@@ -16,9 +16,9 @@ enum L4D2Team
 	L4D2Team_Infected
 }
 
-Handle jockeyRideCheck_Timer;
-float victimPrevPos[3];
-int jockeyVictim;
+Handle jockeyRideCheck_Timer[MAXPLAYERS];
+float victimPrevPos[MAXPLAYERS][3];
+int jockeyVictim[MAXPLAYERS];
 
 public Plugin:myinfo =
 {
@@ -41,45 +41,52 @@ public OnPluginStart()
 
 public void OnMapStart()
 {
-	jockeyRideCheck_Timer = null;
-	victimPrevPos[0] = 0.0;
-	victimPrevPos[1] = 0.0;
-	victimPrevPos[2] = 0.0;
-	jockeyVictim=-1;
+	for(int i =0; i < MAXPLAYERS; i++){
+		jockeyRideCheck_Timer[i] = null;
+		jockeyVictim[i] = -1;
+		victimPrevPos[i][0] = 0.0;
+		victimPrevPos[i][1] = 0.0;
+		victimPrevPos[i][2] = 0.0;
+	}
 }
 
 public Action Event_RoundEnd(Event h_Event, const char[] s_Name, bool b_DontBroadcast)
 {
-	delete jockeyRideCheck_Timer;
-	jockeyVictim = -1;
+	for(int i =0; i < MAXPLAYERS; i++){
+		delete jockeyRideCheck_Timer[i];
+		jockeyVictim[i] = -1;
+	}
 	return Plugin_Continue;
 }
 
 public Action Event_JockeyDeath(Event h_Event, const char[] s_Name, bool b_DontBroadcast)
 {
-	delete jockeyRideCheck_Timer;
-	jockeyVictim = -1;
+	int jockey = GetClientOfUserId(GetEventInt(h_Event, "userid"));
+	delete jockeyRideCheck_Timer[jockey];
+	jockeyVictim[jockey] = -1;
 	return Plugin_Continue;
 }
 
-public Action Event_JockeyRideEnd(Event hEvent, const char[] s_Name, bool b_DontBroadcast)
+public Action Event_JockeyRideEnd(Event h_Event, const char[] s_Name, bool b_DontBroadcast)
 {
-	delete jockeyRideCheck_Timer;
-	jockeyVictim = -1;
+	int jockey = GetClientOfUserId(GetEventInt(h_Event, "userid"));
+	delete jockeyRideCheck_Timer[jockey];
+	jockeyVictim[jockey] = -1;
 	return Plugin_Continue;
 }
 
-public Action Event_JockeyRide(Event event, const char[] name, bool dontBroadcast)
+public Action Event_JockeyRide(Event h_Event, const char[] name, bool dontBroadcast)
 {
-	new victim = GetClientOfUserId(GetEventInt(event, "victim"));
+	new victim = GetClientOfUserId(GetEventInt(h_Event, "victim"));
+	int jockey = GetClientOfUserId(GetEventInt(h_Event, "userid"));
 
 	if (IsClientInGame(victim) && GetClientTeam(victim) == 2 && IsPlayerAlive(victim))
 	{
-		jockeyVictim = victim;
-		GetClientAbsOrigin(victim, victimPrevPos);
+		jockeyVictim[jockey] = victim;
+		GetClientAbsOrigin(victim, victimPrevPos[victim]);
 
-		if(jockeyRideCheck_Timer == null){
-			jockeyRideCheck_Timer = CreateTimer(VICTIM_CHECK_INTERVAL, CheckVictimPosition_Timer, victim, TIMER_REPEAT);
+		if(jockeyRideCheck_Timer[jockey] == null){
+			jockeyRideCheck_Timer[jockey] = CreateTimer(VICTIM_CHECK_INTERVAL, CheckVictimPosition_Timer, victim, TIMER_REPEAT);
 		}
 	}
 	return Plugin_Continue;
@@ -88,13 +95,13 @@ public Action Event_JockeyRide(Event event, const char[] name, bool dontBroadcas
 public void Event_PlayerDeath(Event hEvent, const char[] name, bool dontBroadcast)
 {
 
-	static int client;
+	static int client, attacker;
 	client = GetClientOfUserId(hEvent.GetInt("userid"));
-
+	attacker = GetClientOfUserId(hEvent.GetInt("attacker"));
 	if (client != 0) {
-		if (client == jockeyVictim) {
-			jockeyVictim = -1;
-			delete jockeyRideCheck_Timer;
+		if (client == jockeyVictim[attacker]) {
+			jockeyVictim[attacker] = -1;
+			delete jockeyRideCheck_Timer[attacker];
 		}
 	}
 }
@@ -104,11 +111,12 @@ public void Event_PlayerDisconnect(Event hEvent, const char[] name, bool dontBro
 
 	static int client;
 	client = GetClientOfUserId(hEvent.GetInt("userid"));
-
 	if (client != 0) {
-		if (client == jockeyVictim) {
-			jockeyVictim = -1;
-			delete jockeyRideCheck_Timer;
+		for(int i = 0; i < MAXPLAYERS; i++){
+			if (client == jockeyVictim[i]) {
+				jockeyVictim[i] = -1;
+				delete jockeyRideCheck_Timer[i];
+			}
 		}
 	}
 }
@@ -123,9 +131,9 @@ public Action CheckVictimPosition_Timer(Handle timer, any victim)
 		GetClientAbsOrigin(victim, newVictimPos);
 		isOutsideWorld = TR_PointOutsideWorld(newVictimPos);
 		
-		if ( !isOutsideWorld && (isPrevPositionEmpty() || (!isPrevPositionEmpty() && planarDistance(victimPrevPos, newVictimPos) < 500.0 )) )
+		if ( !isOutsideWorld && (isPrevPositionEmpty(victim) || (!isPrevPositionEmpty(victim) && planarDistance(victimPrevPos[victim], newVictimPos) < 500.0 )) )
 		{
-			victimPrevPos = newVictimPos;
+			victimPrevPos[victim] = newVictimPos;
 		}
 	}
 	
@@ -134,7 +142,7 @@ public Action CheckVictimPosition_Timer(Handle timer, any victim)
 		GetClientAbsOrigin(victim, newVictimPos);
 		isOutsideWorld = TR_PointOutsideWorld(newVictimPos);
 		
-		if(isOutsideWorld || (!isPrevPositionEmpty() && planarDistance(victimPrevPos, newVictimPos) > 500.0 )){
+		if(isOutsideWorld || (!isPrevPositionEmpty(victim) && planarDistance(victimPrevPos[victim], newVictimPos) > 500.0 )){
 			TeleportToPreviousPosition(victim);
 		}
 	}
@@ -147,8 +155,8 @@ float planarDistance(float pos1[3], float pos2[3]){
 	return distance;
 }
 
-bool isPrevPositionEmpty(){
-	if(victimPrevPos[0] == 0 && victimPrevPos[1] == 0 && victimPrevPos[2] == 0){
+bool isPrevPositionEmpty(int victim){
+	if(victimPrevPos[victim][0] == 0 && victimPrevPos[victim][1] == 0 && victimPrevPos[victim][2] == 0){
 		return true;
 	}else{
 		return false;
@@ -156,9 +164,9 @@ bool isPrevPositionEmpty(){
 }
 
 void TeleportToPreviousPosition(int victim){
-	TeleportEntity(victim, victimPrevPos, NULL_VECTOR, NULL_VECTOR);
+	TeleportEntity(victim, victimPrevPos[victim], NULL_VECTOR, NULL_VECTOR);
 	CPrintToChatAll("{blue}[虚空猴修复]{default} 传送回了被虚空猴传送的%N.", victim);
-	Debug_Print("虚空猴修复log: 传回位置为 %f %f %f", victimPrevPos[0], victimPrevPos[1], victimPrevPos[2]);
+	Debug_Print("虚空猴修复log: 传回位置为 %f %f %f", victimPrevPos[victim][0], victimPrevPos[victim][1], victimPrevPos[victim][2]);
 }
 
 stock void TeleportToNearestSurvivor(int victim)
@@ -173,7 +181,7 @@ stock void TeleportToNearestSurvivor(int victim)
 				{
 					float actualSurvivorPosition[3];
 					GetClientAbsOrigin(i, actualSurvivorPosition);
-					float newDistance = GetVectorDistance(actualSurvivorPosition, victimPrevPos);
+					float newDistance = GetVectorDistance(actualSurvivorPosition, victimPrevPos[victim]);
 					if(newDistance < distanceToNearestSurv){
 						distanceToNearestSurv = newDistance;
 						resultClientIndex=i;
@@ -184,11 +192,12 @@ stock void TeleportToNearestSurvivor(int victim)
 	
 	float destinationPos[3];
 	GetClientAbsOrigin(resultClientIndex, destinationPos);
-		
+
 	if (IsClientInGame(resultClientIndex) && IsPlayerAlive(resultClientIndex))
 	{
 		TeleportEntity(victim, destinationPos, NULL_VECTOR, NULL_VECTOR);
 	}
+
 }
 
 bool:IsSurvivor(client)
