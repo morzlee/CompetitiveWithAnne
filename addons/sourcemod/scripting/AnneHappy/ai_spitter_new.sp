@@ -68,6 +68,8 @@ public Action OnPlayerRunCmd(int spitter, int &buttons, int &impulse, float vel[
 {
 	if (IsAiSpitter(spitter))
 	{
+		if (L4D_IsPlayerStaggering(spitter))
+			return Plugin_Continue;
 		// 跳着吐痰
 		if (buttons & IN_ATTACK)
 		{
@@ -156,6 +158,7 @@ public Action OnPlayerRunCmd(int spitter, int &buttons, int &impulse, float vel[
 public Action Timer_ForceSuicide(Handle timer, int client)
 {
 	ForcePlayerSuicide(client);
+	return Plugin_Continue;
 }
 
 // 目标选择
@@ -275,7 +278,7 @@ bool IsSurvivor(int client)
 	}
 }
 
-bool IsIncapped(int client)
+stock bool IsIncapped(int client)
 {
     return view_as<bool>(GetEntProp(client, Prop_Send, "m_isIncapacitated"));
 }
@@ -288,7 +291,7 @@ int GetCrowdPlace()
 	{
 		int index = 0, iTarget = 0;
 		int[] iSurvivors = new int[iCount];
-		float fDistance[MAXPLAYERS + 1] = -1.0;
+		float fDistance[MAXPLAYERS + 1] = {-1.0};
 		for (int client = 1; client <= MaxClients; client++)
 		{
 			if (IsValidClient(client) && GetClientTeam(client) == TEAM_SURVIVOR)
@@ -301,11 +304,11 @@ int GetCrowdPlace()
 			if (IsValidClient(client) && IsPlayerAlive(client) && GetClientTeam(client) == TEAM_SURVIVOR)
 			{
 				fDistance[client] = 0.0;
-				float fClientPos[3] = 0.0;
+				float fClientPos[3] = {0.0};
 				GetClientAbsOrigin(client, fClientPos);
 				for (int i = 0; i < iCount; i++)
 				{
-					float fPos[3] = 0.0;
+					float fPos[3] = {0.0};
 					GetClientAbsOrigin(iSurvivors[i], fPos);
 					fDistance[client] += GetVectorDistance(fClientPos, fPos, true);
 				}

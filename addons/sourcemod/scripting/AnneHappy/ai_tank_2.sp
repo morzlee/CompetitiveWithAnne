@@ -6,7 +6,6 @@
 #include <sdktools>
 #include <colors>
 #include <left4dhooks>
-//#include "vector/vector_show.sp"
 #include <treeutil>
 
 
@@ -20,11 +19,15 @@
 #define LAG_DETECT_TIME 2.0									// 坦克位置检测间隔
 #define LAG_DETECT_RAIDUS 100								// 坦克位置检测范围
 #define TREE_DETECT_TIME 1.5								// 绕树检测间隔
-#define VISION_UNLOCK_TIME 2.5								// 视角解锁间隔
+#define VISION_UNLOCK_TIME 3.0								// 视角解锁间隔
 #define SPEED_FIXED_LENGTH 300.0							// 速度修正最大速度长度
 #define RAY_ANGLE view_as<float>({90.0, 0.0, 0.0})
 #define FL_JUMPING 65922
 #define DEBUG_ALL 0
+#if (DEBUG_ALL)
+int g_sprite;
+#include <vector_show>
+#endif
 
 public Plugin myinfo = 
 {
@@ -157,6 +160,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 {
 	if (IsAiTank(client))
 	{
+		if (L4D_IsPlayerStaggering(client))
+			return Plugin_Continue;
 		bool bHasSight = false, bIsSurvivorFailed = true;
 		int vomit_survivor = 0, target = GetClientAimTarget(client, true), flags = GetEntityFlags(client), nearest_target = GetClosetMobileSurvivor(client), nearest_targetdist = GetClosetSurvivorDistance(client), current_seq = GetEntProp(client, Prop_Send, "m_nSequence");	sicount = GetSiCount_ExcludeTank(bIsSurvivorFailed, vomit_survivor);
 		float selfpos[3] = {0.0}, eyeangles[3] = {0.0}, velbuffer[3] = {0.0}, vecspeed[3] = {0.0}, curspeed = 0.0;
@@ -166,7 +171,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		curspeed = SquareRoot(Pow(vecspeed[0], 2.0) + Pow(vecspeed[1], 2.0));
 		bHasSight = view_as<bool>(GetEntProp(client, Prop_Send, "m_hasVisibleThreats"));
 		// 判断周围是否有梯子，有则不锁定视角
-		IsLadderAround(client, 80.0, selfpos);
+		IsLadderAround(client, 150.0, selfpos);
 		// 连跳与扔石头相关，判断目标是否有效，目标有效，执行连跳与空中防止跳过头操作，同时判断距离，是否允许扔石头
 		if (IsValidSurvivor(target))
 		{
@@ -313,10 +318,12 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		}
 		//PrintToConsoleAll("锁定视角start");
 		// 视角锁定，不允许消耗时并当前时间戳减去扔石头时的时间戳大于 ROCK_AIM_TIME 锁定视角
-		if (bHasSight && !eTankStructure[client].bCanConsume && GetGameTime() - eTankStructure[client].fRockThrowTime > ROCK_AIM_TIME && !IsOnLadder(client) && !IsClientIncapped(nearest_target) && eTankStructure[client].bCanLockVision)
+		if (bHasSight && !eTankStructure[client].bCanConsume && GetGameTime() - eTankStructure[client].fRockThrowTime > ROCK_AIM_TIME  && eTankStructure[client].bCanLockVision)
 		//if (bHasSight && !eTankStructure[client].bCanConsume && GetGameTime() - eTankStructure[client].fRockThrowTime > ROCK_AIM_TIME && !IsOnLadder(client) && !IsClientIncapped(nearest_target))
 		{
-			//PrintToConsoleAll("锁定视角");
+			#if (DEBUG_ALL)
+				PrintToConsoleAll("锁定视角中");
+			#endif
 			float self_eye_pos[3] = {0.0}, targetpos[3] = {0.0}, look_at[3] = {0.0};
 			if (IsValidSurvivor(nearest_target))
 			{
@@ -335,7 +342,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			buttons &= ~IN_JUMP;
 			buttons &= ~IN_DUCK;
 		}
-		/*
+/*
 		// 生还者团灭了，跳起来嘲讽，按键时间不要过快，0.3 秒为最小间隔，如果在帧操作中一直按键则会导致按键不会执行
 		if (bIsSurvivorFailed)
 		{
@@ -356,7 +363,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 }
 
 // 检测当前坦克周围有没有梯子
-stock void IsLadderAround(int client, float distance, float selfpos[3])
+void IsLadderAround(int client, float distance, float selfpos[3])
 {
 	if (IsAiTank(client) && IsPlayerAlive(client))
 	{
@@ -373,14 +380,15 @@ stock void IsLadderAround(int client, float distance, float selfpos[3])
 }
 stock bool TR_LadderFilter(int entity, int self)
 {
-	//PrintToConsoleAll("视角锁定： %d", eTankStructure[self].bCanLockVision);
 	if (IsValidEntity(entity) && IsValidEdict(entity))
 	{
 		char classname[64] = {'\0'};
 		GetEntityClassname(entity, classname, sizeof(classname));
 		if (classname[0] == 'f' && (strcmp(classname, "func_simpleladder") == 0 || strcmp(classname, "func_ladder") == 0))
 		{
-			//PrintToConsoleAll("有梯子，解除锁定视角");
+			#if (DEBUG_ALL)
+				PrintToConsoleAll("有梯子，解除锁定视角");
+			#endif
 			eTankStructure[self].bCanLockVision = false;
 			eTankStructure[self].fLockVisonTime = GetGameTime();
 			return false;
@@ -390,11 +398,8 @@ stock bool TR_LadderFilter(int entity, int self)
 	{
 		eTankStructure[self].bCanLockVision = true;
 	}
-	//PrintToConsoleAll("视角锁定： %d", eTankStructure[self].bCanLockVision);
 	return true;
 }
-
-
 
 // 坦克跳砖
 public Action L4D_OnCThrowActivate(int ability)
@@ -495,13 +500,22 @@ public void evt_TankSpawn(Event event, const char[] name, bool dontBroadcast)
 		// 创建坦克位置检测时钟，如果坦克在有目标前就卡住，则不会检测，所以在刷出来的时候就需要创建
 		if (!eTankStructure[client].bHasCreatePosTimer)
 		{
-			if(hPosCheckTimer[client] != INVALID_HANDLE)
+			if(hPosCheckTimer[client] != null)
 				delete hPosCheckTimer[client];
 			hPosCheckTimer[client] = CreateTimer(LAG_DETECT_TIME, Timer_CheckLag, client, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 			eTankStructure[client].bHasCreatePosTimer = true;
 		}
 	}
 }
+
+#if (DEBUG_ALL)
+	public void OnMapStart()
+	{
+		g_sprite = PrecacheModel("materials/sprites/laserbeam.vmt");
+		g_sprite = g_sprite + 0;
+	}
+#endif
+
 /*
 public void evt_AbilityUse(Event event, const char[] name, bool dontBroadCast)
 {

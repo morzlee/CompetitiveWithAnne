@@ -2,6 +2,7 @@
 #pragma newdecls required
 #include <sourcemod>
 #include <sdktools>
+#include <left4dhooks>
 
 ConVar
 	g_hLungeInterval,
@@ -139,7 +140,8 @@ void Event_AbilityUse(Event event, const char[] name, bool dontBroadcast) {
 public Action OnPlayerRunCmd(int client, int &buttons) {
 	if (!IsClientInGame(client) || !IsFakeClient(client) || GetClientTeam(client) != 3 || !IsPlayerAlive(client) || GetEntProp(client, Prop_Send, "m_zombieClass") != 3 || GetEntProp(client, Prop_Send, "m_isGhost"))
 		return Plugin_Continue;
-
+	if (L4D_IsPlayerStaggering(client))
+			return Plugin_Continue;
 	static int flags;
 	flags = GetEntityFlags(client);
 	if (flags & FL_ONGROUND == 0 || (g_bIgnoreCrouch && flags & FL_DUCKING == 0) ||!GetEntProp(client, Prop_Send, "m_hasVisibleThreats"))

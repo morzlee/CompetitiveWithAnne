@@ -159,10 +159,12 @@ public Action evtRoundStart(Event event, const char[] name, bool dontBroadcast)
 		}
 	}
 	g_fMapFlowDistance = L4D2Direct_GetMapMaxFlowDistance();
+	return Plugin_Continue;
 }
 
 public Action CoolDown(Handle timer,int client){
 	bCanSmoker[client]=true;
+	return Plugin_Continue;
 }
 
 
@@ -172,6 +174,8 @@ public Action OnPlayerRunCmd(int smoker, int &buttons, int &impulse, float vel[3
 	if (IsAiSmoker(smoker))
 	{
 		if(GetEntPropEnt(smoker, Prop_Send, "m_tongueVictim") > 0)
+			return Plugin_Continue;
+		if (L4D_IsPlayerStaggering(smoker))
 			return Plugin_Continue;
 		int iTarget = GetClientAimTarget(smoker, true);
 		float fSmokerPos[3] = {0.0}, fTargetPos[3] = {0.0}, fTargetAngles[3] = {0.0};
@@ -393,7 +397,7 @@ int SmokerTargetChoose(int iMethod, int iSmoker, int iSpecificTarget = -1)
 			{
 				if (IsClientConnected(client) && IsClientInGame(client) && IsPlayerAlive(client) && GetClientTeam(client) == TEAM_SURVIVOR && !IsIncapped(client) && !IsPinned(client) && client != iSpecificTarget)
 				{
-					char sWeaponName[32] = '\0';
+					char sWeaponName[32] = {'\0'};
 					char iWeapon = GetPlayerWeaponSlot(client, 0);
 					if (IsValidEntity(iWeapon) && IsValidEdict(iWeapon))
 					{

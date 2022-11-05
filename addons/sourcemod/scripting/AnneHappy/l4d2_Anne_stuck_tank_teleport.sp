@@ -13,7 +13,7 @@
 #define GAMEDATA "anne_si_spawn"
 #include <l4d2_saferoom_detect>
 
-#define PLUGIN_VERSION "1.9"
+#define PLUGIN_VERSION "2.0"
 ConVar 	g_hCvarEnable;
 ConVar 	g_hCvarStuckInterval;
 ConVar 	g_hCvarNonStuckRadius;
