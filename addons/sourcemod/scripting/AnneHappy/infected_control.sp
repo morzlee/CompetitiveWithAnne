@@ -71,13 +71,16 @@ ConVar
 	g_hEnableSIoption, 
 	g_hAllChargerMode,
 	g_hAddDamageToSmoker,
+	g_hMaxSdkcallNum,
 	g_hIgnoreIncappedSurvivorSight, 
 	g_hAllHunterMode;
 
 // Ints
 int 
 	g_iSiLimit, 						//特感数量
-	iWaveTime, 							//Debug时输出这是第几波刷特
+	g_iWaveTime, 						//Debug时输出这是第几波刷特
+	g_iSdkcallNum = 0,					//当前sdkcall数量
+	g_iSdkcallLimit = 5,				//最多允许存在的sdkcalls个数，性能消耗
 	g_iTotalSINum = 0,					//总共还活着的特感
 	g_iEnableSIoption = 63,				//可生成的特感种类
 	g_iTeleportCheckTime = 5,   		//特感传送要求的不被看到的次数(1s检查一次)
@@ -102,6 +105,7 @@ bool
 	g_bTeleportSi, 						//是否开启特感传送检测
 	g_bAddDamageToSmoker,				//是否对smoker增伤（一般alone模式开启）
 	g_bIgnoreIncappedSurvivorSight,		//是否忽略倒地生还者的视线
+	g_bIsInTeleport[MAXPLAYERS + 1] = {false},//此特感是否在传送进程中
 	g_bIsLate = false, 					//text插件是否发送开启刷特命令
 	g_bTargetSystemAvailable = false;	//目标选择插件是否存在
 // Handle
@@ -135,6 +139,7 @@ public void OnPluginStart()
 	g_hEnableSIoption = CreateConVar("inf_EnableSIoption", "63", "启用生成的特感类型，1 smoker 2 boomer 4 hunter 8 spitter 16 jockey 32 charger,把你想要生成的特感值加起来", CVAR_FLAG, true, 0.0, true, 63.0);
 	g_hAllChargerMode = CreateConVar("inf_AllChargerMode", "0", "是否是全牛模式", CVAR_FLAG, true, 0.0, true, 1.0);
 	g_hAllHunterMode = CreateConVar("inf_AllHunterMode", "0", "是否是全猎人模式", CVAR_FLAG, true, 0.0, true, 1.0);
+	g_hMaxSdkcallNum = CreateConVar("inf_SdkcallLimit", "5", "sdkcall存在的最大上限，一个sdkcalls对应一个特感的传送处理线程，这个选项多特开很大很消耗性能", CVAR_FLAG, true, 0.0, true, 31.0);
 	g_hIgnoreIncappedSurvivorSight = CreateConVar("inf_IgnoreIncappedSurvivorSight", "1", "特感传送检测是否被看到的时候是否忽略倒地生还者视线", CVAR_FLAG, true, 0.0, true, 1.0);
 	g_hAddDamageToSmoker= CreateConVar("inf_AddDamageToSmoker", "0", "单人模式smoker拉人时是否5倍伤害", CVAR_FLAG, true, 0.0, true, 1.0);
 	//传送会根据这个数值画一个以选定生还者为核心，两边各长inf_TeleportDistance单位距离，高inf_TeleportDistance距离的长方形区域内找复活位置,PS传送最好近一点
@@ -161,6 +166,7 @@ public void OnPluginStart()
 	g_hEnableSIoption.AddChangeHook(ConVarChanged_Cvars);
 	g_hAllChargerMode.AddChangeHook(ConVarChanged_Cvars);
 	g_hAllHunterMode.AddChangeHook(ConVarChanged_Cvars);
+	g_hMaxSdkcallNum.AddChangeHook(ConVarChanged_Cvars);
 	g_hAddDamageToSmoker.AddChangeHook(ConVarChanged_Cvars);
 	g_hSiLimit.AddChangeHook(MaxPlayerZombiesChanged_Cvars);
 	
@@ -246,6 +252,7 @@ void GetCvars()
 	g_iEnableSIoption = g_hEnableSIoption.IntValue;
 	g_bAddDamageToSmoker = g_hAddDamageToSmoker.BoolValue;
 	g_bIgnoreIncappedSurvivorSight = g_hIgnoreIncappedSurvivorSight.BoolValue;
+	g_iSdkcallNum = g_hMaxSdkcallNum.IntValue;
 	if(g_hAllChargerMode.BoolValue){
 		TweakSettings();
 	}
@@ -304,7 +311,7 @@ public void InitStatus(){
 	aThreadHandle.Clear();
 	aSpawnQueue.Resize(1);
 	g_iQueueIndex = 0;
-	iWaveTime=0;
+	g_iWaveTime=0;
 	for(int i = 0; i < 6; i++){
 		g_iSINum[i] =0;
 	}
@@ -354,6 +361,10 @@ public void evt_PlayerDeath(Event event, const char[] name, bool dontBroadcast)
 			{
 				g_iTotalSINum = 0;
 			}
+		}
+		if(g_bIsInTeleport[client]){
+			g_bIsInTeleport[client] = false;
+			g_iSdkcallLimit--;
 		}	
 	}
 	g_iTeleCount[client] = 0;
@@ -679,8 +690,8 @@ public Action SpawnNewInfected(Handle timer)
 
 		g_iSpawnMaxCount += 1;
 		if (g_iSiLimit == g_iSpawnMaxCount){
-			iWaveTime++;
-			Debug_Print("%s:开始第%d波刷特",sTime,iWaveTime);
+			g_iWaveTime++;
+			Debug_Print("%s:开始第%d波刷特", sTime, g_iWaveTime);
 		}
 			
 		// 当一定时间内刷不出特感，触发时钟使 g_iSpawnMaxCount 超过 g_iSiLimit 值时，最多允许刷出 g_iSiLimit + 2 只特感，防止连续刷 2-3 波的情况
@@ -723,10 +734,10 @@ public void ResetStatus(){
 
 // *********************
 //		   方法
-// *********************
+// *********************stock bool IsAiSmoker(int client)
 bool IsInfectedBot(int client)
 {
-	if (client > 0 && client <= MaxClients && IsClientInGame(client) && IsFakeClient(client) && GetClientTeam(client) == TEAM_INFECTED)
+	if (client > 0 && client <= MaxClients && IsClientInGame(client) && IsFakeClient(client) && GetClientTeam(client) == TEAM_INFECTED && GetEntProp(client, Prop_Send, "m_zombieClass") != 8)
 	{
 		return true;
 	}
@@ -1016,7 +1027,7 @@ bool IsPinningSomeone(int client)
 
 bool CanBeTeleport(int client)
 {
-	if (IsInfectedBot(client) && IsClientInGame(client)&& IsPlayerAlive(client) && GetEntProp(client, Prop_Send, "m_zombieClass") != ZC_TANK)
+	if (IsInfectedBot(client) && IsClientInGame(client)&& IsPlayerAlive(client) && GetEntProp(client, Prop_Send, "m_zombieClass") != ZC_TANK && !g_bIsInTeleport[client] && g_iSdkcallNum < g_iSdkcallLimit)
 	{
 		return true;
 	}
@@ -1042,6 +1053,8 @@ public Action Timer_PositionSi(Handle timer)
 					if (!PlayerVisibleToSDK(fSelfPos, true))
 					{
 						SDKHook(client, SDKHook_PostThinkPost, SDK_UpdateThink);
+						g_bIsInTeleport[client] = true;
+						g_iSdkcallNum ++;
 						g_iTeleCount[client] = 0;
 					}
 				}
@@ -1053,6 +1066,8 @@ public Action Timer_PositionSi(Handle timer)
 		}
 		
 	}
+	//非正常情况，每1s找一次攻击目标，正常情况ongameframe会调用
+	g_iTargetSurvivor = GetTargetSurvivor();
 	return Plugin_Continue;
 }
 
@@ -1118,6 +1133,8 @@ public void SDK_UpdateThink(int client)
 				g_iTeleCount[client] = 0;
 			}
 			SDKUnhook(client, SDKHook_PostThinkPost, SDK_UpdateThink);
+			g_bIsInTeleport[client] = false;
+			g_iSdkcallLimit--;
 			return;
 		}
 		g_iTeleCount[client] = 0;
@@ -1125,8 +1142,6 @@ public void SDK_UpdateThink(int client)
 			
 	}
 }
-
-
 
 
 void HardTeleMode(int client)
@@ -1169,22 +1184,8 @@ void HardTeleMode(int client)
 				if(TR_DidHit())
 				{
 					TR_GetEndPosition(fEndPos);
-					if(!IsOnValidMesh(fEndPos))
-					{
-						fSpawnPos[2] = fSurvivorPos[2] + NAV_MESH_HEIGHT;
-						TR_TraceRay(fSpawnPos, fDirection, MASK_PLAYERSOLID, RayType_Infinite);
-						if(TR_DidHit())
-						{
-							TR_GetEndPosition(fEndPos);
-							fSpawnPos = fEndPos;
-							fSpawnPos[2] += NAV_MESH_HEIGHT;
-						}
-					}
-					else
-					{
-						fSpawnPos = fEndPos;
-						fSpawnPos[2] += NAV_MESH_HEIGHT;
-					}
+					fSpawnPos = fEndPos;
+					fSpawnPos[2] += NAV_MESH_HEIGHT;
 				}
 			}
 			if (count2<= 20)
@@ -1198,11 +1199,12 @@ void HardTeleMode(int client)
 						fSurvivorPos[2] -= 60.0;
 						Address nav1 = L4D_GetNearestNavArea(fSpawnPos, 120.0, false, false, false, TEAM_INFECTED);
 						Address nav2 = L4D_GetNearestNavArea(fSurvivorPos, 120.0, false, false, false, TEAM_INFECTED);
-						if (L4D2_NavAreaBuildPath(nav1, nav2, g_fTeleportDistance  * 1.2, TEAM_INFECTED, false) && GetVectorDistance(fSurvivorPos, fSpawnPos) >= g_fSpawnDistanceMin && nav1 != nav2)
+						if (L4D2_NavAreaBuildPath(nav1, nav2, g_fTeleportDistance  * 1.73, TEAM_INFECTED, false) && GetVectorDistance(fSurvivorPos, fSpawnPos) >= g_fSpawnDistanceMin && nav1 != nav2)
 						{
 							TeleportEntity(client, fSpawnPos, NULL_VECTOR, NULL_VECTOR);
 							SDKUnhook(client, SDKHook_PostThinkPost, SDK_UpdateThink);
-
+							g_bIsInTeleport[client] = false;
+							g_iSdkcallLimit--;
 							return;
 						}
 					}
@@ -1215,6 +1217,18 @@ void HardTeleMode(int client)
 stock bool IsAiSmoker(int client)
 {
 	if (client && client <= MaxClients && IsClientInGame(client) && IsPlayerAlive(client) && IsFakeClient(client) && GetClientTeam(client) == TEAM_INFECTED && GetEntProp(client, Prop_Send, "m_zombieClass") == 1 && GetEntProp(client, Prop_Send, "m_isGhost") != 1)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+stock bool IsAiTank(int client)
+{
+	if (client && client <= MaxClients && IsClientInGame(client) && IsPlayerAlive(client) && IsFakeClient(client) && GetClientTeam(client) == TEAM_INFECTED && GetEntProp(client, Prop_Send, "m_zombieClass") == 8 && GetEntProp(client, Prop_Send, "m_isGhost") != 1)
 	{
 		return true;
 	}
