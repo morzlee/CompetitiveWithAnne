@@ -60,4 +60,35 @@
 各个服主也可以根据自己喜好设置不同的难度，大部分的都可以通过控制Cvar来控制难度
 部分可能需要源码的，所有源码也已经开源，其中AnneHappy为主的插件在scripts/AnneHappy/文件夹
 拓展性为主的插件在scripts/extend/文件夹
-如果发现有问题，请
+如果发现有问题，请发issue
+
+### 2022年11月6日更新记录
+#### 刷特插件infected_control.smx
+- 修改传送时生成位置错误的逻辑
+- 增加sdkcalls限制[默认5个]，这个参数很多特的时候消耗比较大，谨慎添加更多！这个代表最多5只特感可以进入传送找位流程，以后可能不会单独用sdkcall处理传送，会先处死，然后进入传送队列，放到ongameframe中处理
+#### ai_tank_2.smx插件
+- tank插件优化了梯子处理逻辑，将在生还者出安全区的时候遍历所有entity找到所有梯子实体，保存好梯子的起始位置，去除高度的影响下来判断距离，距离小于150的就处在梯子附近，tank将无法锁定视角
+#### l4d2_Anne_stuck_tank_teleport插件
+- 新版本的可见函数对于tank无效，改回原来的逻辑
+#### 结构优化
+- 多人模式将共用annehappy模式的shared_cvar.cfg和shared_plugins.cfg
+- 单人模式将共用alone模式的map_cvar
+- 卸载大部分annehappy不需要的插件
+- server的网络参数设置将只应用与annehappy比赛模式，对抗的网络参数强制使用cfg/confogl_rates.cfg文件，对抗原来的gamemode参数已经加到confogl_personalize.cfg，原来的对抗模式参数anne.vpk基本已经删除完
+#### 特感加智插件
+- 特感处于stargger状态下不进行操作
+#### server_name插件
+- 服务器名插件模式检测更改为对l4d_ready_cfg_name cvar的检测，不再使用sv_tags处理，适配对抗的readyup插件名字设置
+#### join插件
+- 增加了服务器核心插件自动更新功能，不过还是建议多看看插件包是不是有更新
+#### 插件汉化
+不少插件增加汉化显示
+#### 地图修改
+部分同步上游地图参数导致牢房减弱，修改回来
+#### confoglcompmod.smx
+防打服狗，我在这个插件增加了平时服务器默认隐藏的参数，有人加载模式后就会删除隐藏，如果高防服务器可以修改源码重新编译一下，等打服狗死了我会用自动更新把这个插件修改为正常
+还有一些小修复，具体看[commit log](https://github.com/fantasylidong/CompetitiveWithAnne/commits/master)
+#### advertisement.smx
+不同模式的广告文本加载不同
+#### vote.cfg
+支持不同模式选用不同的投票cfg文件

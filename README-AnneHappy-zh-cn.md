@@ -21,6 +21,7 @@
 
 ## **已知问题:**
 * 小刀为TLS更新前的原版小刀
+* AnneHappy模式猴子有可能会将生还者传送到虚空【重要问题】，有临时修复，会在0.1s后将虚空的生还者传送回来，如果你找到问题是怎么发生的，请反馈一下，谢谢
 * ~~对抗原生的更换队伍不能用，使用join.smx插件进行换队(!inf !infected 感染 !jg !join 生还 !spec !afk旁观）~~ 已解决
 
 ## **无数据库服务器安装问题:**
@@ -39,7 +40,9 @@
 - extendd/veterans.smx 时长检测插件，部分依赖于l4d_stats.smx插件的时长信息，能够自定义想玩游戏玩家的时长限制，不满足时长的，只能旁观，join.smx插件依赖这个插件提供是否是steamm组成员的信息
 - extend/join.smx 玩家加入离开提示，换队作用，motd展示功能（不是组员会有提示，需要veterans插件作为前置）
 
-
+## **Issue 发起说明**
+请先阅读完README-AnneHappy-zh-cn.md后再发起任何issue
+发起issue请进来仔细描述问题，最好能提供错误的log和怎么复现的，拒绝无效Issue
 	
 ## **感谢人员:**
 
@@ -57,5 +60,5 @@
 > **Testing/Issue Reporting:**
 * Too many to list, keep up the great work in reporting issues!
 
-**NOTE:** If your work is being used and I forgot to credit you, my sincere apologies.  
-I've done my best to include everyone on the list, simply create an issue and name the plugin/extension you've made/contributed to and I'll make sure to credit you properly.
+**注意事项:** 如果你的作品被使用了，而我却忘了归功于你，我真诚地向你道歉。 
+我已经尽力将名单上的每个人都包括在内，只要创建一个问题，并说出你所制作/贡献的插件/扩展，我就会确保适当地记入你的名字。

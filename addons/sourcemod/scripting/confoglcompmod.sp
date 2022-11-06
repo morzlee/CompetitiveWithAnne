@@ -230,7 +230,7 @@ public void OnPluginStart()
 
 	//Other
 	AddCustomServerTag("confogl");
-	AddCustomServerTag("hidden");
+	//AddCustomServerTag("hidden");
 }
 
 public void OnPluginEnd()
