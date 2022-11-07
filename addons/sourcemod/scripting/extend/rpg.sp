@@ -33,7 +33,8 @@ bool IsStart=false;
 bool IsAllowBigGun = false;
 bool IsAnne = false;
 int InfectedNumber=6;
-ConVar GaoJiRenJi, AllowBigGun, g_InfectedNumber, g_cShopEnable;
+bool g_bEnableGlow = true;
+ConVar GaoJiRenJi, AllowBigGun, g_InfectedNumber, g_cShopEnable, g_hEnableGlow;
 bool g_bGodFrameSystemAvailable = false, g_bHatSystemAvailable = false, g_bHextagsSystemAvailable = false, g_bl4dstatsSystemAvailable = false;
 //new lastpoints[MAXPLAYERS + 1];
 
@@ -189,6 +190,7 @@ public void  OnPluginStart()
 	//HookEvent("player_team", 	Event_PlayerTeam, EventHookMode_Pre);
 	g_cShopEnable =  CreateConVar("shop_enable", "0", "是否打开商店购买", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	AllowBigGun = CreateConVar("rpg_allow_biggun", "0", "商店是否允许购买大枪", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_hEnableGlow = CreateConVar("rpg_allow_glow", "1", "商店是否打开轮廓", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	if(FindConVar("sb_fix_enabled"))
 		GaoJiRenJi=FindConVar("sb_fix_enabled");
 	if(FindConVar("l4d_infected_limit")){
@@ -249,12 +251,9 @@ void ConVarChanged_Cvars(ConVar convar, const char[] oldValue, const char[] newV
 		Call_PushCell(false);//按顺序将参数push进forward传参列表里
 		Call_Finish();//转发结束
 	}
-	InfectedNumber=GetConVarInt(FindConVar("l4d_infected_limit"));
-	if(AllowBigGun.IntValue)
-		IsAllowBigGun = true;
-	else
-		IsAllowBigGun = false;
-
+	InfectedNumber = GetConVarInt(FindConVar("l4d_infected_limit"));
+	IsAllowBigGun = GetConVarBool(AllowBigGun);
+	g_bEnableGlow = GetConVarBool(g_hEnableGlow);
 }
 
 public void Event_PlayerDisconnectOrAFK( Event hEvent, const char[] sName, bool bDontBroadcast )
@@ -298,7 +297,7 @@ public Action PlayerSpawnTimer( Handle hTimer, any UserID )
 	
 	if( GetClientTeam( client ) == 2 && IsPlayerGhost( client ) != true )
 	{
-		if(player[client].GlowType)
+		if(player[client].GlowType && g_bEnableGlow)
 			GetAura(client,player[client].GlowType);
 		if(player[client].ClientHat)
 			ServerCommand("sm_hatclient #%d %d", GetClientUserId(client), player[client].ClientHat);
@@ -320,7 +319,7 @@ public void Event_PlayerTeam(Event hEvent, const char[] name, bool dontBroadcast
 	int iTeam = hEvent.GetInt("team");
 	if( iTeam == 2 )
 	{
-		if(player[client].GlowType)
+		if(player[client].GlowType && g_bEnableGlow)
 			GetAura(client,player[client].GlowType);
 		if(player[client].ClientHat)
 			ServerCommand("sm_hatclient #%d %d", GetClientUserId(client), player[client].ClientHat);
@@ -420,10 +419,6 @@ public Action EventMissionLost(Handle event, const char []name, bool dontBroadca
 
 public void EventReturnBlood(Handle event, const char []name, bool dontBroadcast){
 	int victim = GetClientOfUserId(GetEventInt(event, "userid", 0));
-	if(IsValidClient(victim)){
-		DisableGlow( victim );
-		DisableSkin( victim );
-	}
 	int attacker = GetClientOfUserId(GetEventInt(event, "attacker", 0));
 	int var2 = victim;
 	if (MaxClients >= var2 && 1 <= var2)
@@ -546,7 +541,7 @@ public void SetPlayer(int client)
 	if(IsValidClient(client) && GetClientTeam( client ) == 2 )
 	{
 		
-		if(player[client].GlowType)
+		if(player[client].GlowType && g_bEnableGlow)
 			GetAura(client,player[client].GlowType);
 		if(player[client].ClientHat)
 			ServerCommand("sm_hatclient #%d %d", GetClientUserId(client), player[client].ClientHat);
@@ -1053,7 +1048,7 @@ public void BuildMenu(int client)
 			menu.AddItem("Hat", binfo);
 		}
 
-		if((g_bl4dstatsSystemAvailable && l4dstats_IsTopPlayer(client,20))|| GetUserAdmin(client)!= INVALID_ADMIN_ID || player[client].GlowType > 0 || !g_bl4dstatsSystemAvailable)
+		if((g_bl4dstatsSystemAvailable && l4dstats_IsTopPlayer(client,20)) && g_bEnableGlow || GetUserAdmin(client)!= INVALID_ADMIN_ID || player[client].GlowType > 0 || !g_bl4dstatsSystemAvailable)
 		{
 			FormatEx(binfo, sizeof(binfo),  "生还者轮廓", client); //生还者轮廓菜单
 			menu.AddItem("Survivor_glow", binfo);
