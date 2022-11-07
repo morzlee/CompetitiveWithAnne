@@ -81,7 +81,7 @@ public Plugin myinfo =
 	author = "东",
 	description = "当tank卡住时传送tank到靠近玩家但是玩家看不到的地方，有求生跑男时会传送到跑男位置",
 	version = PLUGIN_VERSION,
-	url = "https://github.com/fantasylidong/anne"
+	url = "https://github.com/fantasylidong/CompetitiveWithAnne"
 }
 
 public void OnPluginStart()
@@ -557,19 +557,6 @@ bool IsAllSurAheadTankFlow(int tank){
 	return true;
 }
 
-/*
-float GetFurthestUncappedSurvivorFlow(){
-	float HighestFlow=0.0;
-	for(int i=1;i<=MaxClients;i++)
-		if(IsValidSurvivor(i))
-			if(!L4D_IsPlayerIncapacitated(i)||!L4D_IsPlayerPinned(i)){
-			float tmp=L4D2Direct_GetFlowDistance(i);
-			if(tmp>HighestFlow)
-				HighestFlow=tmp;
-		}
-	return HighestFlow;
-}
-*/
 int GetNearestTank(int client) {
 	static float tpos[3], spos[3], dist, mindist;
 	static int iNearClient;

@@ -32,10 +32,10 @@ int g_sprite;
 public Plugin myinfo = 
 {
 	name 			= "Ai_Tank_Enhance2.0",
-	author 			= "夜羽真白",
+	author 			= "夜羽真白，东",
 	description 	= "Tank 增强插件 2.0 版本",
-	version 		= "2.0.0.0",
-	url 			= "https://steamcommunity.com/id/saku_ra/"
+	version 		= "2.0.1.0",
+	url 			= "https://github.com/fantasylidong/CompetitiveWithAnne"
 }
 
 enum struct struct_TankConsume
@@ -172,7 +172,7 @@ public Action CalculateLadderNum(int client, int args){
 		}
 	}
 	PrintToChatAll("本地图共有：%d 个梯子 %d个初始化检测梯子", laddercount, ladderNum);
-	return Plugin_Continue;
+	return Plugin_Handled;
 }
 #endif
 
@@ -509,6 +509,13 @@ public void evt_TankSpawn(Event event, const char[] name, bool dontBroadcast)
 	}
 #endif
 
+public void OnMapEnd(){
+	for(int i =0; i <= MAXPLAYERS; i++){
+		eTankStructure[i].struct_Init();
+		hPosCheckTimer[i] = null;
+	}
+}
+
 /*
 public void evt_AbilityUse(Event event, const char[] name, bool dontBroadCast)
 {
@@ -552,10 +559,11 @@ public void evt_PlayerIncapped(Event event, const char[] name, bool dontBroadcas
 	{
 		eTankStructure[attacker].iIncappedCount += 1;
 	}
-	else if (IsAiTank(client) && hPosCheckTimer[client] != null)
+	else if (IsAiTank(client) )
 	{
-		delete hPosCheckTimer[client];
-		hPosCheckTimer[client] = null;
+		if(hPosCheckTimer[client] != null){
+			delete hPosCheckTimer[client];
+		}	
 		eTankStructure[client].struct_Init();
 		ConsumePosInit(client);
 	}

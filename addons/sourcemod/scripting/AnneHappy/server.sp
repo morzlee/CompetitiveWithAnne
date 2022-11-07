@@ -154,7 +154,7 @@ public void Event_PlayerSpawn(Event hEvent, const char[] name, bool dontBroadcas
 public Action ADMAddBot(int client, int args)
 {
 	if(client == 0)
-		return Plugin_Continue;
+		return Plugin_Handled;
 	
 	if(SpawnFakeClient() == true)
 		PrintToChat(client, "\x04一个生还者Bot被生成.");
@@ -272,7 +272,7 @@ public Action SetBot(int client, int args)
 			}
 		}
 	}
-	return Plugin_Continue;
+	return Plugin_Handled;
 }
 
 
@@ -306,7 +306,7 @@ public Action OnAmbientSound(char sample[PLATFORM_MAX_PATH], int &entity, float 
 public Action RestartMap(int client,int args)
 {
 	CrashMap();
-	return Plugin_Continue;
+	return Plugin_Handled;
 }
 
 public void event_RoundStart(Handle event, char[] name, bool dontBroadcast)

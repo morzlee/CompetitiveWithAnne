@@ -53,6 +53,7 @@ public void OnMapStart()
 public Action Event_RoundEnd(Event h_Event, const char[] s_Name, bool b_DontBroadcast)
 {
 	for(int i =0; i < MAXPLAYERS; i++){
+		if(jockeyRideCheck_Timer[i] != null)
 		delete jockeyRideCheck_Timer[i];
 		jockeyVictim[i] = -1;
 	}
@@ -86,7 +87,7 @@ public Action Event_JockeyRide(Event h_Event, const char[] name, bool dontBroadc
 		GetClientAbsOrigin(victim, victimPrevPos[victim]);
 
 		if(jockeyRideCheck_Timer[jockey] == null){
-			jockeyRideCheck_Timer[jockey] = CreateTimer(VICTIM_CHECK_INTERVAL, CheckVictimPosition_Timer, victim, TIMER_REPEAT);
+			jockeyRideCheck_Timer[jockey] = CreateTimer(VICTIM_CHECK_INTERVAL, CheckVictimPosition_Timer, victim, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 		}
 	}
 	return Plugin_Continue;
@@ -164,9 +165,11 @@ bool isPrevPositionEmpty(int victim){
 }
 
 void TeleportToPreviousPosition(int victim){
+	char map[128];
+	GetCurrentMap(map,sizeof(map));
 	TeleportEntity(victim, victimPrevPos[victim], NULL_VECTOR, NULL_VECTOR);
 	CPrintToChatAll("{blue}[虚空猴修复]{default} 传送回了被虚空猴传送的%N.", victim);
-	Debug_Print("虚空猴修复log: 传回位置为 %f %f %f", victimPrevPos[victim][0], victimPrevPos[victim][1], victimPrevPos[victim][2]);
+	Debug_Print("虚空猴修复log: 当前地图：%s, 将%N传回位置为 %f %f %f", map, victim, victimPrevPos[victim][0], victimPrevPos[victim][1], victimPrevPos[victim][2]);
 }
 
 stock void TeleportToNearestSurvivor(int victim)

@@ -16,10 +16,10 @@ enum AimType
 public Plugin myinfo = 
 {
 	name 			= "Ai_Jockey增强",
-	author 			= "Breezy，High Cookie，Standalone，Newteee，cravenge，Harry，Sorallll，PaimonQwQ，夜羽真白",
+	author 			= "Breezy，High Cookie，Standalone，Newteee，cravenge，Harry，Sorallll，PaimonQwQ，夜羽真白, 东",
 	description 	= "觉得Ai猴子太弱了？ Try this！",
-	version 		= "2022/5/2",
-	url 			= "https://steamcommunity.com/id/saku_ra/"
+	version 		= "2022/11/1",
+	url 			= "https://github.com/fantasylidong/CompetitiveWithAnne"
 }
 
 // ConVars

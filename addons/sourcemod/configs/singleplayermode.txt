@@ -304,6 +304,17 @@
 			"message" "关闭Mod"
 		}
 	}
+	"杂项"
+	{
+		"exec vote/gunrecoil_off.cfg"
+		{
+			"message" "关闭枪械抖动"
+		}
+		"exec vote/gunrecoil_on.cfg"
+		{
+			"message" "开启枪械抖动"
+		}
+	}
 	"武器配置"
 	{
 		"sm_cvar ZonemodWeapon 0"

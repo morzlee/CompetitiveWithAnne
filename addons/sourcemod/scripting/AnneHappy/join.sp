@@ -39,10 +39,10 @@ public Plugin myinfo =
 	name = "simple join",
 	author = "东",
 	description = "A plugin designed CompetitiveWithAnne package change player team.",
-	version = "1.0",
+	version = "1.1",
 	url = "https://github.com/fantasylidong/CompetitiveWithAnne"
 };
-#define UPDATE_URL    "http://dl.trygek.com:8880/left4dead2/addons/sourcemod/Anne_Updater.txt"
+#define UPDATE_URL    "http://dl.trygek.com/left4dead2/addons/sourcemod/Anne_Updater.txt"
 
 bool  g_bUpdateSystemAvailable = false, g_bGroupSystemAvailable = false;
 
@@ -315,7 +315,7 @@ public Action ShowAnneServerIP(int client, int args)
 	GetConVarString(hCvarMotdTitle, title, sizeof(title));
 	GetConVarString(hCvarIPUrl, url, sizeof(url));
 	ShowMOTDPanel(client, title, url, MOTDPANEL_TYPE_URL);
-	return Plugin_Continue;
+	return Plugin_Handled;
 }
 
 public Action ShowAnneServerWeb(int client, int args) 
@@ -324,7 +324,7 @@ public Action ShowAnneServerWeb(int client, int args)
 	GetConVarString(hCvarMotdTitle, title, sizeof(title));
 	GetConVarString(hCvarMotdUrl, url, sizeof(url));
 	ShowMOTDPanel(client, title, url, MOTDPANEL_TYPE_URL);	
-	return Plugin_Continue;
+	return Plugin_Handled;
 }
 
 public void ShowMotdToPlayer(int client)
@@ -344,7 +344,7 @@ public Action GetBot(int client, int args)
 	}else{
 		DrawSwitchCharacterMenu(client);
 	}
-	return Plugin_Continue;
+	return Plugin_Handled;
 }
 
 public void DrawSwitchCharacterMenu(int client)

@@ -55,7 +55,7 @@ public Plugin myinfo =
 	author 			= "Caibiii, 夜羽真白，东",
 	description 	= "特感刷新控制，传送落后特感",
 	version 		= "2022.11.01",
-	url 			= "https://github.com/Caibiii/AnneServer"
+	url 			= "https://github.com/fantasylidong/CompetitiveWithAnne"
 }
 
 // Cvars
@@ -217,13 +217,13 @@ stock Action Cmd_StartSpawn(int client, int args)
 		GetSiLimit();
 		TweakSettings();
 	}
-	return Plugin_Continue;
+	return Plugin_Handled;
 }
 
 stock Action Cmd_StopSpawn(int client, int args)
 {
 	StopSpawn();
-	return Plugin_Continue;
+	return Plugin_Handled;
 }
 
 // *********************
