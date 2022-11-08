@@ -1,5 +1,5 @@
 # **AnneHappy 插件带上对抗插件包**
-* 这个插件包将不会带有nav修改文件和跳舞插件的模型与声音，如果需要AnneHappy的Nav修改文件请到我的[anne项目](https://github.com/fantasylidong/anne)中下载
+* 为了保持插件包结构和上游一样方便同步，这个插件包将不会带有nav修改文件和跳舞插件的模型与声音，AnneHappy的Nav修改文件请到我的[anne项目](https://github.com/fantasylidong/anne)中下载
 
 ## **关于新增模式:**
 

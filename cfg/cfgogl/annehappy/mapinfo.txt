@@ -499,11 +499,11 @@
 			"Early to past Event"
 			{
 				"min"		"0"
-				"max"		"64"
+				"max"		"50"
 			}
 			"Block End"
 			{
-				"min"		"68"
+				"min"		"80"
 				"max"		"100"
 			}
 		}

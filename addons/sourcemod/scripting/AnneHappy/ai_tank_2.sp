@@ -8,21 +8,21 @@
 #include <left4dhooks>
 #include <treeutil>
 
-
 #define CVAR_FLAG FCVAR_NOTIFY
 #define NAV_MESH_HEIGHT 20.0								// 有效 Nav 位置高度
 #define WALL_DETECT_DIST 64.0								// 前方墙体检测距离
 #define FALL_DETECT_HEIGHT 120.0							// 向下坠落高度
 #define ROCK_THROW_HEIGHT 110.0								// 坦克石头出手高度
-#define ROCK_AIM_TIME 0.5									// 坦克扔石头瞄准的时间
+#define ROCK_AIM_TIME 0.8									// 坦克扔石头瞄准的时间
 #define FUNCTION_FINDPOS_TRY 5								// 函数找位一次最大找位次数
 #define LAG_DETECT_TIME 2.0									// 坦克位置检测间隔
 #define LAG_DETECT_RAIDUS 100								// 坦克位置检测范围
+#define LAG_DETECT_OFFSET 30.0								// 坦克位置检测偏移角度
 #define TREE_DETECT_TIME 1.5								// 绕树检测间隔
-#define SPEED_FIXED_LENGTH 300.0							// 速度修正最大速度长度
+#define VISION_UNLOCK_TIME 2.0								// 视角解锁间隔
+#define SPEED_FIXED_LENGTH 350.0							// 速度修正最大速度长度
 #define RAY_ANGLE view_as<float>({90.0, 0.0, 0.0})
 #define FL_JUMPING 65922
-#define ladderTotal 200
 #define DEBUG_ALL 0
 #if (DEBUG_ALL)
 int g_sprite;
@@ -47,6 +47,7 @@ enum struct struct_TankConsume
 	bool bIsReachingRayPos;			// 是否正在前往射线找位的位置
 	bool bInConsumePlace;			// 是否在消耗位上
 	bool bHasRecordProgress;		// 是否记录生还者当前路程
+	bool bHasCreatePosTimer;		// 是否创建位置检测时钟
 	bool bCanLockVision;
 	// Ints
 	int iTreeTarget;				// 绕树目标
@@ -62,12 +63,14 @@ enum struct struct_TankConsume
 	float fTreeTargetPos[3];		// 绕树生还当前位置
 	float fFailedJumpedTime;		// 团灭嘲讽跳起来的时间戳
 	float fRockThrowTime;			// 扔石头的时间戳
+	float fLockVisonTime;			// 视角解锁时间戳
 	// 结构体变量初始化
 	void struct_Init()
 	{
 		this.bCanInitPos = this.bCanConsume = this.bIsReachingFunctionPos = this.bIsReachingRayPos = this.bInConsumePlace = this.bHasRecordProgress = false;
 		this.iTreeTarget = this.iConsumeSurPercent = this.iConsumeNum = this.iIncappedCount = 0;
-		this.fTreeTime = this.fFailedJumpedTime = this.fRockThrowTime = 0.0;
+		this.fTreeTime = this.fFailedJumpedTime = this.fRockThrowTime = this.fLockVisonTime = 0.0;
+		this.bHasCreatePosTimer = false;
 		this.fTankStopDistance = 0.0;
 	}
 	void setTankStopDistance(float distance){
@@ -91,15 +94,6 @@ stock void ConsumePosInit(int client, bool function_pos = true, bool ray_pos = t
 		eTankStructure[client].fRayConsumePos[0] = eTankStructure[client].fRayConsumePos[1] = eTankStructure[client].fRayConsumePos[2] = 0.0;
 	}
 }
-enum struct ladder_info{
-	int entityid;
-	float origin[3];
-	float position[3];
-	float normal[3];
-	float angles[3];
-}
-ladder_info ladder[ladderTotal];
-int ladderNum = 0;
 
 // ConVars
 ConVar g_hAllowBhop, g_hBhopSpeed, g_hAirAngleRestrict,	g_hTankStopDistance,														// 控制坦克连跳，防止跳过头
@@ -114,7 +108,9 @@ g_hRockMinInterval;																								// 坦克攻击距离，特感数量
 int throw_min_range = 0, throw_max_range = 0, sicount = 0,														// 最小与最大允许投掷距离，特感数量
 highest_health_target = -1, lowest_health_target = -1;
 // Handle
-Handle hPosCheckTimer[MAXPLAYERS + 1] = {null};
+Handle hPosCheckTimer[MAXPLAYERS + 1] = { null };
+// List
+ArrayList ladderList = null;
 
 public void OnPluginStart()
 {
@@ -155,12 +151,14 @@ public void OnPluginStart()
 	g_hRockMinInterval = FindConVar("tank_throw_min_interval");
 	// HookEvents
 	HookEvent("tank_spawn", evt_TankSpawn);
-	//HookEvent("ability_use", evt_AbilityUse);
 	HookEvent("player_incapacitated", evt_PlayerIncapped);
+	HookEvent("finale_win", evt_ResetLadder);
+	HookEvent("map_transition", evt_ResetLadder);
+	// Building List
+	ladderList = new ArrayList(3);
 	#if(DEBUG_ALL)
-	RegAdminCmd("sm_checkladder", CalculateLadderNum, ADMFLAG_ROOT, "测试当前地图有多少个梯子");
+		RegAdminCmd("sm_checkladder", CalculateLadderNum, ADMFLAG_ROOT, "测试当前地图有多少个梯子");
 	#endif
-	ladderInit();
 }
 
 #if(DEBUG_ALL)
@@ -171,14 +169,51 @@ public Action CalculateLadderNum(int client, int args){
 			laddercount++;
 		}
 	}
-	PrintToChatAll("本地图共有：%d 个梯子 %d个初始化检测梯子", laddercount, ladderNum);
+	PrintToChatAll("本地图共有：%d 个梯子 %d个初始化检测梯子", laddercount, ladderList.Length);
 	return Plugin_Handled;
 }
 #endif
 
+public void OnPluginEnd()
+{
+	delete ladderList;
+}
+
 public void ConVarChanged_Cvars(ConVar convar, const char[] oldValue, const char[] newValue)
 {
 	Get_ThrowRange();
+}
+
+stock void CheckAllLadder()
+{
+	ladderList.Clear();
+	char className[64] = {'\0'};
+	float ladderVec[3] = {0.0}, ladderAgl[3] = {0.0}, ladderActPos[3] = {0.0}, mins[3] = {0.0}, maxs[3] = {0.0};
+	for (int i = MaxClients + 1; i < GetEntityCount(); i++)
+	{
+		if (IsValidEntity(i) && IsValidEdict(i))
+		{
+			GetEntityClassname(i, className, sizeof(className));
+			if (className[0] == 'f' && (strcmp(className, "func_simpleladder") == 0 || strcmp(className, "func_ladder") == 0))
+			{
+				GetEntPropVector(i, Prop_Send, "m_vecOrigin", ladderVec);
+				GetEntPropVector(i, Prop_Send, "m_vecMins", mins);
+				GetEntPropVector(i, Prop_Send, "m_vecMaxs", maxs);
+				GetEntPropVector(i, Prop_Send, "m_angRotation", ladderAgl);
+				Math_RotateVector(mins, ladderAgl, mins);
+				Math_RotateVector(maxs, ladderAgl, maxs);
+				ladderActPos[0] = ladderVec[0] + (mins[0] + maxs[0]) * 0.5;
+				ladderActPos[1] = ladderVec[1] + (mins[1] + maxs[1]) * 0.5;
+				ladderActPos[2] = ladderVec[2] + (mins[2] + maxs[2]) * 0.5;
+				#if (DEBUG_ALL)
+				{
+					PrintToConsoleAll("[Ai-Tank]：梯子：%d 坐标：[%.2f, %.2f, %.2f]", i, ladderActPos[0], ladderActPos[1], ladderActPos[2]);
+				}
+				#endif
+				ladderList.PushArray(ladderActPos);
+			}
+		}
+	}
 }
 
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon)
@@ -195,8 +230,6 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		GetEntPropVector(client, Prop_Data, "m_vecVelocity", vecspeed);
 		curspeed = SquareRoot(Pow(vecspeed[0], 2.0) + Pow(vecspeed[1], 2.0));
 		bHasSight = view_as<bool>(GetEntProp(client, Prop_Send, "m_hasVisibleThreats"));
-		// 判断周围是否有梯子，有则不锁定视角
-		//IsLadderAround(client, 150.0, selfpos);
 		// 连跳与扔石头相关，判断目标是否有效，目标有效，执行连跳与空中防止跳过头操作，同时判断距离，是否允许扔石头
 		if (IsValidSurvivor(target))
 		{
@@ -336,15 +369,22 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				}
 			}
 		}
+		else
+		{
+			// Cvar 变动，不允许消耗时，重置 Tank 行为
+			if (eTankStructure[client].bCanConsume)
+			{
+				CreateTimer(0.5, Timer_TankAction_Reset, client);
+				eTankStructure[client].bCanConsume = eTankStructure[client].bIsReachingFunctionPos = eTankStructure[client].bIsReachingRayPos = eTankStructure[client].bInConsumePlace = false;
+			}
+		}
 		// 扔石头时，记录扔石头的时间戳
 		if (current_seq == 49 || current_seq == 50 || current_seq == 51)
 		{
 			eTankStructure[client].fRockThrowTime = GetGameTime();
 		}
-		//PrintToConsoleAll("锁定视角start");
 		// 视角锁定，不允许消耗时并当前时间戳减去扔石头时的时间戳大于 ROCK_AIM_TIME 锁定视角
 		if (bHasSight && !eTankStructure[client].bCanConsume && GetGameTime() - eTankStructure[client].fRockThrowTime > ROCK_AIM_TIME  && eTankStructure[client].bCanLockVision)
-		//if (bHasSight && !eTankStructure[client].bCanConsume && GetGameTime() - eTankStructure[client].fRockThrowTime > ROCK_AIM_TIME && !IsOnLadder(client) && !IsClientIncapped(nearest_target))
 		{
 			#if (DEBUG_ALL)
 				//PrintToConsoleAll("锁定视角中");
@@ -360,14 +400,12 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				TeleportEntity(client, NULL_VECTOR, look_at, NULL_VECTOR);
 			}
 		}
-
 		// 爬梯子时，禁止连跳
 		if (GetEntityMoveType(client) & MOVETYPE_LADDER)
 		{
-			buttons &= ~IN_JUMP;
+			//buttons &= ~IN_JUMP;
 			buttons &= ~IN_DUCK;
 		}
-/*
 		// 生还者团灭了，跳起来嘲讽，按键时间不要过快，0.3 秒为最小间隔，如果在帧操作中一直按键则会导致按键不会执行
 		if (bIsSurvivorFailed)
 		{
@@ -382,20 +420,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				return Plugin_Changed;
 			}
 		}
-		*/
 	}
 	return Plugin_Continue;
-}
-
-public void ladderInit(){
-	ladderNum = 0;
-	for(int i =0; i < ladderTotal; i++){
-		ladder[i].entityid = -1;
-		ladder[i].angles = {0.0, 0.0, 0.0};
-		ladder[i].normal = {0.0, 0.0, 0.0};
-		ladder[i].position = {0.0, 0.0, 0.0};
-		ladder[i].origin = {0.0, 0.0, 0.0};
-	}
 }
 
 // 坦克跳砖
@@ -493,44 +519,16 @@ public void evt_TankSpawn(Event event, const char[] name, bool dontBroadcast)
 		// 坦克刷新后，先清空其他类型的数据，过 1 秒，再清空由于运行 OnPlayerRunCmd 中找到的消耗位，让坦克继续找位，目标有效，则停止时钟，坦克刚刚创建出来后 1s 可能还会无目标，使用循环时钟
 		eTankStructure[client].struct_Init();
 		eTankStructure[client].setTankStopDistance(GetConVarFloat(g_hTankStopDistance));
-		CreateTimer(1.0, Timer_SpawnCheckConsume, client, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(1.0, Timer_SpawnCheckConsume, client, TIMER_REPEAT);
+		CreateTimer(2.0, checkLadderAroundHandler, client, TIMER_REPEAT);
 		// 创建坦克位置检测时钟，如果坦克在有目标前就卡住，则不会检测，所以在刷出来的时候就需要创建
-		if(hPosCheckTimer[client] != null)
-			delete hPosCheckTimer[client];
-		hPosCheckTimer[client] = CreateTimer(LAG_DETECT_TIME, Timer_CheckLag, client, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
-	}
-}
-
-#if (DEBUG_ALL)
-	public void OnMapStart()
-	{
-		g_sprite = PrecacheModel("materials/sprites/laserbeam.vmt");
-		g_sprite = g_sprite + 0;
-	}
-#endif
-
-public void OnMapEnd(){
-	for(int i =0; i <= MAXPLAYERS; i++){
-		eTankStructure[i].struct_Init();
-		hPosCheckTimer[i] = null;
-	}
-}
-
-/*
-public void evt_AbilityUse(Event event, const char[] name, bool dontBroadCast)
-{
-	int client = GetClientOfUserId(event.GetInt("userid"));
-	if (IsAiTank(client))
-	{
-		static char sAbility[16];
-		event.GetString("ability", sAbility, sizeof(sAbility));
-		if (strcmp(sAbility, "ability_throw") == 0)
+		if (!eTankStructure[client].bHasCreatePosTimer)
 		{
-			eTankStructure[client].fRockThrowTime = GetGameTime();
+			hPosCheckTimer[client] = CreateTimer(LAG_DETECT_TIME, Timer_CheckLag, client, TIMER_REPEAT);
+			eTankStructure[client].bHasCreatePosTimer = true;
 		}
 	}
 }
-*/
 public Action Timer_SpawnCheckConsume(Handle timer, int client)
 {
 	if (IsAiTank(client))
@@ -561,12 +559,15 @@ public void evt_PlayerIncapped(Event event, const char[] name, bool dontBroadcas
 	}
 	else if (IsAiTank(client) )
 	{
-		if(hPosCheckTimer[client] != null){
-			delete hPosCheckTimer[client];
-		}	
 		eTankStructure[client].struct_Init();
 		ConsumePosInit(client);
 	}
+}
+
+// 过关重置梯子信息
+public void evt_ResetLadder(Event event, const char[] name, bool dontBroadcast)
+{
+	ladderList.Clear();
 }
 
 stock bool IsOnLadder(int entity)
@@ -594,7 +595,6 @@ float[] CalculateVel(float selfpos[3], float targetpos[3], float force)
 bool Tank_DoBhop(int client, int &buttons, float vec[3])
 {
 	bool bJumped = false;
-	//if (buttons & IN_FORWARD || buttons & IN_BACK || buttons & IN_MOVELEFT || buttons & IN_MOVERIGHT)
 	if (buttons & IN_FORWARD || buttons & IN_MOVELEFT || buttons & IN_MOVERIGHT)
 	{
 		if (ClientPush(client, vec))
@@ -602,15 +602,13 @@ bool Tank_DoBhop(int client, int &buttons, float vec[3])
 			bJumped = true;
 		}
 	}
-	else if(buttons & IN_BACK){
-		bJumped = false;
-	}
 	return bJumped;
 }
 
 public Action L4D_OnFirstSurvivorLeftSafeArea(){
-	ladderInit();
-	CheckAllLadder();
+	if(ladderList.Length <= 1){
+		CheckAllLadder();
+	}
 	return Plugin_Continue;
 }
 
@@ -640,7 +638,6 @@ public Action Timer_CheckLag(Handle timer, int client)
 	{
 		float selfpos[3] = {0.0};
 		GetClientAbsOrigin(client, selfpos);
-		IsLadderAround(client, 150.0, selfpos);
 		if (!Is_InConsumeRaidus(selfpos, eTankStructure[client].fNowPos, LAG_DETECT_RAIDUS))
 		{
 			CopyVectors(selfpos, eTankStructure[client].fNowPos);
@@ -671,14 +668,26 @@ public Action Timer_CheckLag(Handle timer, int client)
 		}
 		else
 		{
-			float eyeangles[3] = {0.0}, look_at[3] = {0.0};
+			/* float eyeangles[3] = {0.0}, look_at[3] = {0.0};
 			GetClientEyeAngles(client, eyeangles);
 			GetAngleVectors(eyeangles, look_at, NULL_VECTOR, NULL_VECTOR);
 			NormalizeVector(look_at, look_at);
 			ScaleVector(look_at, 251.0);
 			look_at[1] = GetRandomFloat(look_at[1], look_at[1] + 360.0);
-			TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, look_at);
+			TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, look_at); */
+			// 获取 Tank 眼睛角度，x，z 置 0，y 每 2s 偏移 30 度，获取方向向量进行推动
+			float eyeAngles[3] = {0.0}, resultVec[3] = {0.0};
+			GetClientEyeAngles(client, eyeAngles);
+			resultVec[1] = eyeAngles[1] + LAG_DETECT_OFFSET;
+			GetAngleVectors(resultVec, resultVec, NULL_VECTOR, NULL_VECTOR);
+			NormalizeVector(resultVec, resultVec);
+			ScaleVector(resultVec, 251.0);
+			TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, resultVec);
 		}
+	}
+	else
+	{
+		return Plugin_Stop;
 	}
 	return Plugin_Continue;
 }
@@ -841,7 +850,7 @@ bool Check_TankCanConsume(int client, int m_sicount, int target, int vomitsurviv
 		// 当前上面任意条件不满足时，不允许消耗
 		else if (IsPlayerAlive(client) && !IsClientIncapped(client) && eTankStructure[client].bCanConsume)
 		{
-			CreateTimer(1.0, Timer_TankAction_Reset, client, TIMER_FLAG_NO_MAPCHANGE);
+			CreateTimer(1.0, Timer_TankAction_Reset, client);
 			#if (DEBUG_ALL)
 				PrintToConsoleAll("[Ai-Tank]：【当前坦克血量：%d 或 距离：%.2f 或 被喷：%d 或 当前特感：%d】 -> 不满足要求，强制压制", GetClientHealth(client), GetVectorDistance(selfpos, targetpos), vomitsurvivor, m_sicount);
 			#endif
@@ -861,7 +870,7 @@ void Find_And_Goto_ConsumePos(int client, int target)
 	}
 	if (eTankStructure[client].fFunctionConsumePos[0] != 0.0 && !eTankStructure[client].bInConsumePlace && !eTankStructure[client].bIsReachingFunctionPos)
 	{
-		CreateTimer(1.0, Timer_CommandToFunctionPos, client, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(1.0, Timer_CommandToFunctionPos, client, TIMER_REPEAT);
 		eTankStructure[client].bIsReachingFunctionPos = true;
 		#if (DEBUG_ALL)
 			PrintToConsoleAll("[Ai-Tank]：函数找到的消耗位：%.2f %.2f %.2f", eTankStructure[client].fFunctionConsumePos[0], eTankStructure[client].fFunctionConsumePos[1], eTankStructure[client].fFunctionConsumePos[2]);
@@ -874,7 +883,7 @@ void Find_And_Goto_ConsumePos(int client, int target)
 	}
 	if (eTankStructure[client].fRayConsumePos[0] != 0.0 && !eTankStructure[client].bInConsumePlace && !eTankStructure[client].bIsReachingRayPos)
 	{
-		CreateTimer(1.0, Timer_CommandToRayPos, client, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(1.0, Timer_CommandToRayPos, client, TIMER_REPEAT);
 		eTankStructure[client].bIsReachingRayPos = true;
 		#if (DEBUG_ALL)
 			PrintToConsoleAll("[Ai-Tank]：射线找到的消耗位：%.2f %.2f %.2f", eTankStructure[client].fRayConsumePos[0], eTankStructure[client].fRayConsumePos[1], eTankStructure[client].fRayConsumePos[2]);
@@ -895,7 +904,7 @@ void Record_Survivor_Progress(int client)
 			Address pNavArea = L4D2Direct_GetTerrorNavArea(targetpos);
 			if (pNavArea == Address_Null)
 			{
-				pNavArea = view_as<Address>(L4D_GetNearestNavArea(targetpos));
+				pNavArea = view_as<Address>(L4D_GetNearestNavArea(targetpos, 300.0));
 			}
 			eTankStructure[client].iConsumeSurPercent = Calculate_Flow(pNavArea);
 			#if (DEBUG_ALL)
@@ -916,12 +925,12 @@ void Survivor_Progress_Check(int client)
 		Address pNavArea = L4D2Direct_GetTerrorNavArea(targetpos);
 		if (pNavArea == Address_Null)
 		{
-			pNavArea = view_as<Address>(L4D_GetNearestNavArea(targetpos));
+			pNavArea = view_as<Address>(L4D_GetNearestNavArea(targetpos, 300.0));
 		}
 		now_flow = Calculate_Flow(pNavArea);
 		if (eTankStructure[client].bCanConsume && now_flow > (eTankStructure[client].iConsumeSurPercent + g_hForceAttackProgress.IntValue))
 		{
-			CreateTimer(1.0, Timer_TankAction_Reset, client, TIMER_FLAG_NO_MAPCHANGE);
+			CreateTimer(1.0, Timer_TankAction_Reset, client);
 			eTankStructure[client].bCanConsume = false;
 			#if (DEBUG_ALL)
 				PrintToConsoleAll("[Ai-Tank]：当前生还者进度：%d，大于限制进度：%d，控制坦克强制压制", now_flow, eTankStructure[client].iConsumeSurPercent + g_hForceAttackProgress.IntValue);
@@ -1023,7 +1032,7 @@ void RayPos_Visible_Check(int client)
 // 当前坦克走到消耗位范围中时，令其扔石头
 Action In_ConsumePos_ThrowRock(int client, float selfpos[3], int sequence, int &buttons)
 {
-	if (Is_InConsumeRaidus(selfpos, eTankStructure[client].fFunctionConsumePos, g_hConsumePosRaidus.IntValue*2) || Is_InConsumeRaidus(selfpos, eTankStructure[client].fRayConsumePos, g_hConsumePosRaidus.IntValue))
+	if (Is_InConsumeRaidus(selfpos, eTankStructure[client].fFunctionConsumePos, g_hConsumePosRaidus.IntValue) || Is_InConsumeRaidus(selfpos, eTankStructure[client].fRayConsumePos, g_hConsumePosRaidus.IntValue))
 	{
 		eTankStructure[client].bInConsumePlace = true;
 		eTankStructure[client].bIsReachingFunctionPos = eTankStructure[client].bIsReachingRayPos = false;
@@ -1045,7 +1054,7 @@ Action In_ConsumePos_ThrowRock(int client, float selfpos[3], int sequence, int &
 		if (eTankStructure[client].fFunctionConsumePos[0] != 0.0 && eTankStructure[client].fRayConsumePos[0] == 0.0 && !eTankStructure[client].bIsReachingFunctionPos)
 		{
 			eTankStructure[client].bIsReachingFunctionPos = true;
-			CreateTimer(1.0, Timer_CommandToFunctionPos, client, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+			CreateTimer(1.0, Timer_CommandToFunctionPos, client, TIMER_REPEAT);
 			#if (DEBUG_ALL)
 				PrintToConsoleAll("[Ai-Tank]：当前坦克走出函数消耗位，重新进入");
 			#endif
@@ -1053,7 +1062,7 @@ Action In_ConsumePos_ThrowRock(int client, float selfpos[3], int sequence, int &
 		if (eTankStructure[client].fRayConsumePos[0] != 0.0 && !eTankStructure[client].bIsReachingRayPos)
 		{
 			eTankStructure[client].bIsReachingRayPos = true;
-			CreateTimer(1.0, Timer_CommandToRayPos, client, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+			CreateTimer(1.0, Timer_CommandToRayPos, client, TIMER_REPEAT);
 			#if (DEBUG_ALL)
 				PrintToConsoleAll("[Ai-Tank]：当前坦克走出射线消耗位，重新进入");
 			#endif
@@ -1152,7 +1161,7 @@ bool Is_Pos_Ahead(float refpos[3])
 	Address pNowNav = L4D2Direct_GetTerrorNavArea(refpos);
 	if (pNowNav == Address_Null)
 	{
-		pNowNav = view_as<Address>(L4D_GetNearestNavArea(refpos));
+		pNowNav = view_as<Address>(L4D_GetNearestNavArea(refpos, 300.0));
 	}
 	pos_flow = Calculate_Flow(pNowNav);
 	int target = L4D_GetHighestFlowSurvivor();
@@ -1163,7 +1172,7 @@ bool Is_Pos_Ahead(float refpos[3])
 		Address pTargetNav = L4D2Direct_GetTerrorNavArea(targetpos);
 		if (pTargetNav == Address_Null)
 		{
-			pTargetNav = view_as<Address>(L4D_GetNearestNavArea(refpos));
+			pTargetNav = view_as<Address>(L4D_GetNearestNavArea(refpos, 300.0));
 		}
 		target_flow = Calculate_Flow(pTargetNav);
 	}
@@ -1180,61 +1189,42 @@ int Calculate_Flow(Address pNavArea)
 	return RoundToNearest(now_nav_promixity * 100.0);
 }
 
-//遍历地图entity找到所有梯子entity，储存所有梯子信息
-public void CheckAllLadder(){
-	int ent = -1;
-	while((ent = FindEntityByClassname(ent, "func_simpleladder")) != -1) {
-		if(IsValidEntity(ent)) {
-			ladder[ladderNum].entityid = ent;
-			GetLadderEntityInfo(ent, ladder[ladderNum].origin, ladder[ladderNum].position, ladder[ladderNum].normal, ladder[ladderNum].angles);
-			ladderNum++;
-		}
-	}
-	//return Plugin_Continue;
-}
 
-// 检测当前坦克周围有没有梯子
-void IsLadderAround(int client, float distance, float selfpos[3])
+
+// 检测坦克周围是否有梯子
+// @ Proposal by Morzlee
+public Action checkLadderAroundHandler(Handle timer, int client)
 {
-	if (IsAiTank(client) && IsPlayerAlive(client))
+	if (!IsAiTank(client)) { return Plugin_Stop; }
+	float tankPos[3] = {0.0}, curLadderPos[3] = {0.0};
+	GetClientAbsOrigin(client, tankPos);
+	#if (DEBUG_ALL)
 	{
-		for(int i =0; i < ladderNum; i++){
-			if(GetVector2DDistance(selfpos, ladder[i].position) < distance ){
-				#if(DEBUG_ALL)
-					PrintToConsoleAll("检测到附近梯子，关闭%f秒视角锁定, 此地图总共有%d个梯子", LAG_DETECT_TIME, ladderNum);
-				#endif
-				eTankStructure[client].bCanLockVision = false;
-				return;
-			}
-		}
-		#if(DEBUG_ALL)
-			PrintToConsoleAll("检测到附近没有梯子，允许视角锁定, 此地图总共有%d个梯子", ladderNum);
-		#endif
-		eTankStructure[client].bCanLockVision = true;
+		PrintToConsoleAll("梯子检测");
 	}
+	#endif
+	for (int i = 0; i < ladderList.Length; i++)
+	{
+		ladderList.GetArray(i, curLadderPos);
+		tankPos[2] = curLadderPos[2] = 0.0;
+		if (GetVectorDistance(tankPos, curLadderPos) <= 150.0)
+		{
+			#if (DEBUG_ALL)
+			{
+				PrintToConsoleAll("[Ai-Tank]：Tank 坐标：[%.2f, %.2f, %.2f]，梯子：%d 坐标：[%.2f, %.2f, %.2f]，距离：%.2f", tankPos[0], tankPos[1], tankPos[2],
+				 (i + 1), curLadderPos[0], curLadderPos[1], curLadderPos[2], GetVectorDistance(tankPos, curLadderPos));
+			}
+			#endif
+			eTankStructure[client].bCanLockVision = false;
+			eTankStructure[client].fLockVisonTime = GetGameTime();
+			return Plugin_Continue;
+		}
+	}
+	if (GetGameTime() - eTankStructure[client].fLockVisonTime > VISION_UNLOCK_TIME) { eTankStructure[client].bCanLockVision = true; }
+	return Plugin_Continue;
 }
 
-public float GetVector2DDistance(float vec1[3], float vec2[3]){
-	vec1[2] = 0.0;
-	vec2[2] = 0.0;
-	return GetVectorDistance(vec1, vec2);
-}
-
-
-public void GetLadderEntityInfo(int entity, float origin[3], float position[3], float normal[3], float angles[3]) {
-    float mins[3];
-    float maxs[3];
-    GetEntPropVector(entity, Prop_Send, "m_vecOrigin", origin);
-    GetEntPropVector(entity, Prop_Send, "m_vecMins", mins);
-    GetEntPropVector(entity, Prop_Send, "m_vecMaxs", maxs);
-    GetEntPropVector(entity, Prop_Send, "m_climbableNormal", normal);
-    GetEntPropVector(entity, Prop_Send, "m_angRotation", angles);
-    Math_RotateVector(mins, angles, mins);
-    Math_RotateVector(maxs, angles, maxs);
-    position[0] = origin[0] + (mins[0] + maxs[0]) * 0.5;
-    position[1] = origin[1] + (mins[1] + maxs[1]) * 0.5;
-    position[2] = origin[2] + (mins[2] + maxs[2]) * 0.5;
-}
+// from smlib https://github.com/bcserv/smlib
 
 /**
  * Rotates a vector around its zero-point.

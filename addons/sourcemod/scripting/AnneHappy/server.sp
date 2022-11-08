@@ -43,6 +43,7 @@ public Plugin myinfo =
 
 ConVar hMaxSurvivors, hSurvivorsManagerEnable, hCvarAutoKickTank;
 int iMaxSurvivors, iEnable, iAutoKickTankEnable;
+
 public void OnPluginStart()
 {
 	AddNormalSoundHook(view_as<NormalSHook>(OnNormalSound));
@@ -311,20 +312,23 @@ public Action RestartMap(int client,int args)
 
 public void event_RoundStart(Handle event, char[] name, bool dontBroadcast)
 {
-	CreateTimer( 3.0, Timer_DelayedOnRoundStart, _, TIMER_FLAG_NO_MAPCHANGE );
+	CreateTimer( 3.0, Timer_DelayedOnRoundStart, _, TIMER_REPEAT );
 }
 
 public Action Timer_DelayedOnRoundStart(Handle timer) 
 {
 	SetConVarString(FindConVar("mp_gamemode"), "coop");
-	return Plugin_Continue;
+	L4D2_HideVersusScoreboard();
+	return Plugin_Stop;
 }
 
 public Action L4D2_OnEndVersusModeRound(bool countSurvivors)
 {
 	SetConVarString(FindConVar("mp_gamemode"), "realism");
+	CreateTimer(3.0, Timer_DelayedOnRoundStart, _, TIMER_REPEAT);
 	return Plugin_Handled;
 }
+
 
 public Action ResetSurvivors(Handle event, char[] name, bool dontBroadcast)
 {
@@ -410,6 +414,7 @@ void ResetInventory()
 		}
 	}		
 }
+
 void DeleteInventoryItem(int client, int slot) 
 {
 	int item = GetPlayerWeaponSlot(client, slot);

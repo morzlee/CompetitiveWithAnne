@@ -60,17 +60,12 @@ public Action player_death(Handle event, char[] name, bool dontBroadcast)
 	if(IsTeamImmobilised())
 	{
 		SlaySurvivors();
-		SetConVarString(FindConVar("mp_gamemode"), "realism");
 	}
 	return Plugin_Continue;
 }
 public Action ZiSha(int client, int args)
 {
 	ForcePlayerSuicide(client);
-	if(IsTeamImmobilised())
-	{
-		SetConVarString(FindConVar("mp_gamemode"), "realism");
-	}
 	return Plugin_Handled;
 }
 
@@ -78,10 +73,6 @@ public Action ZiSha(int client, int args)
 public Action killall(int client, int args)
 {
 	SlaySurvivors();
-	if(IsTeamImmobilised())
-	{
-		SetConVarString(FindConVar("mp_gamemode"), "realism");
-	}	
 	return Plugin_Handled;
 }
 
@@ -101,7 +92,6 @@ public void Incap_Event(Handle event, char[] name, bool dontBroadcast)
 	if(IsTeamImmobilised())
 	{
 		SlaySurvivors();
-		SetConVarString(FindConVar("mp_gamemode"), "realism");
 	}
 }
 
