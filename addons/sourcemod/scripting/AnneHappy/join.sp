@@ -84,8 +84,8 @@ public void OnPluginStart()
 {
 	hCvarEnableInf = CreateConVar("join_enable_inf", "1", "是否可以开启加入特感", _, true, 0.0, true, 1.0);
 	hCvarMotdTitle = CreateConVar("sm_cfgmotd_title", "AnneHappy电信服");
-	hCvarMotdUrl = CreateConVar("sm_cfgmotd_url", "http://dl.trygek.com:8880/l4d_stats/index.php");  // 以后更换为数据库控制
-	hCvarIPUrl = CreateConVar("sm_cfgip_url", "http://dl.trygek.com:8880/index.php");	// 以后更换为数据库控制
+	hCvarMotdUrl = CreateConVar("sm_cfgmotd_url", "http://dl.trygek.com/l4d_stats/index.php");  // 以后更换为数据库控制
+	hCvarIPUrl = CreateConVar("sm_cfgip_url", "http://dl.trygek.com/index.php");	// 以后更换为数据库控制
 	RegConsoleCmd("sm_away", AFKTurnClientToSpe);
 	RegConsoleCmd("sm_afk", AFKTurnClientToSpe);
 	RegConsoleCmd("sm_spec", AFKTurnClientToSpe);
@@ -262,12 +262,9 @@ void checkbot(){
 			count++;
 		}
 	}
-	if(count==0)
-	{
-		for(;count < FindConVar("survivor_limit").IntValue; count++){
-			ServerCommand("sb_add");
-		}	
-	}
+	for(;count < FindConVar("survivor_limit").IntValue; count++){
+		ServerCommand("sb_add");
+	}	
 }
 
 public Action TurnClientToSurvivors(int client, int args)

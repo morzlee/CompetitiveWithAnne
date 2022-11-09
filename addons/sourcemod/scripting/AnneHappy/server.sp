@@ -52,7 +52,6 @@ public void OnPluginStart()
 	HookEvent("witch_killed", WitchKilled_Event);
 	HookEvent("finale_win", ResetSurvivors);
 	HookEvent("map_transition", ResetSurvivors);
-	HookEvent("round_start", event_RoundStart);
 	HookEvent("player_spawn", 	Event_PlayerSpawn);
 	HookEvent("player_incapacitated", OnPlayerIncappedOrDeath);
 	HookEvent("player_death", OnPlayerIncappedOrDeath);
@@ -67,8 +66,36 @@ public void OnPluginStart()
 	hMaxSurvivors.AddChangeHook(ConVarChanged_Cvars);
 	hCvarAutoKickTank.AddChangeHook(ConVarChanged_Cvars);
 	GetCvars();
+	HookUserMessage(GetUserMessageId("VGUIMenu"), blockvgui, true);
+	HookUserMessage(GetUserMessageId("PZEndGamePanelMsg"), blockMessage, true);
+	HookUserMessage(GetUserMessageId("PZEndGamePanelVoteRegisteredMsg"), blockMessage, true);
+	HookUserMessage(GetUserMessageId("PZEndGameVoteStatsMsg"), blockMessage, true);
+	//HookUserMessage(GetUserMessageId("VGUIMenu"), blockvgui2, true);
+} 
+
+public Action L4D2_OnEndVersusModeRound(bool countsurvivor)
+{
+	if(countsurvivor){
+		SetConVarString(FindConVar("mp_gamemode"), "realism");
+	}
+	return Plugin_Continue;
 }
 
+
+
+public Action blockvgui(UserMsg msg_id, BfRead msg, const int[] players, int playersNum, bool reliable, bool init){
+	static char buffer[254];
+	msg.ReadString(buffer, sizeof buffer);
+	if (StrContains(buffer, "fullscreen_vs_") != -1 || StrContains(buffer, "info_window") != -1) {
+		return Plugin_Handled;
+	}
+
+	return Plugin_Continue;
+}
+
+public Action blockMessage(UserMsg msg_id, BfRead msg, const int[] players, int playersNum, bool reliable, bool init){
+	return Plugin_Handled;
+}
 
 
 public void ConVarChanged_Cvars(Handle convar, const char[] oldValue, const char[] newValue)
@@ -310,25 +337,6 @@ public Action RestartMap(int client,int args)
 	return Plugin_Handled;
 }
 
-public void event_RoundStart(Handle event, char[] name, bool dontBroadcast)
-{
-	CreateTimer( 3.0, Timer_DelayedOnRoundStart, _, TIMER_REPEAT );
-}
-
-public Action Timer_DelayedOnRoundStart(Handle timer) 
-{
-	SetConVarString(FindConVar("mp_gamemode"), "coop");
-	L4D2_HideVersusScoreboard();
-	return Plugin_Stop;
-}
-
-public Action L4D2_OnEndVersusModeRound(bool countSurvivors)
-{
-	SetConVarString(FindConVar("mp_gamemode"), "realism");
-	CreateTimer(3.0, Timer_DelayedOnRoundStart, _, TIMER_REPEAT);
-	return Plugin_Handled;
-}
-
 
 public Action ResetSurvivors(Handle event, char[] name, bool dontBroadcast)
 {
@@ -339,7 +347,6 @@ public Action ResetSurvivors(Handle event, char[] name, bool dontBroadcast)
 
 public Action L4D_OnFirstSurvivorLeftSafeArea() 
 {
-	SetConVarString(FindConVar("mp_gamemode"), "coop");
 	SetBot(0,0);
 	//SetGodMode(false);
 	CreateTimer(0.5, Timer_AutoGive, _, TIMER_FLAG_NO_MAPCHANGE);

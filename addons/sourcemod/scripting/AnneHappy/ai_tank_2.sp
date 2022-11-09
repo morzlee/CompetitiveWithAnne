@@ -545,7 +545,7 @@ public Action Timer_SpawnCheckConsume(Handle timer, int client)
 			return Plugin_Stop;
 		}
 	}
-	return Plugin_Continue;
+	return Plugin_Stop;
 }
 
 // 玩家倒地

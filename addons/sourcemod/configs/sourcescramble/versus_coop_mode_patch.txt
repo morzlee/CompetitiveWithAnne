@@ -18,9 +18,9 @@
 
 "Patches"
 {
-	//"team_select_sig"	"CDirector::JoinNewPlayer::Ptach"
-	//"team_select_sig"	"CTerrorPlayer::PostThink::Ptach"
-	//"team_select_sig"	"CTerrorPlayer::AutoSelectTeam::Ptach"
-	"team_select_sig"	"SwapTeams::Ptach1"
-	"team_select_sig"	"SwapTeams::Ptach2"
+	"versus_coop_mode_sig"	"SwapTeams::Ptach1"
+	"versus_coop_mode_sig"	"SwapTeams::Ptach2"
+	"versus_coop_mode_sig"	"CleanUpMap::ShouldCreateEntity::Ptach"
+	"versus_coop_mode_sig"	"VersusScoreboard::Ptach1"
+	"versus_coop_mode_sig"	"VersusScoreboard::Ptach3"
 }
