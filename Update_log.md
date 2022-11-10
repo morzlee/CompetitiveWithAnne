@@ -92,3 +92,21 @@
 不同模式的广告文本加载不同
 #### vote.cfg
 支持不同模式选用不同的投票cfg文件
+
+### 2022年11月10日更新记录
+#### 刷特插件infected_control.smx
+- 修复刷特插件传送出现问题
+#### ai_tank_2.smx插件
+- 修复delete handle产生的报错
+- 修改梯子检测方式
+#### server.smx插件
+- block vguimenu 类型的usermessage来去除分数显示
+- 只更换地图前把模式切换为写实，平常团灭不切换模式
+- 屏蔽对抗的重赛等消息
+#### survivor_mvp
+- 删除团灭更换模式
+#### userhook.smx
+- 拓展测试插件增减usermessage hook 插件
+#### confoglcompmod.smx
+- 已经取消隐藏的处理
+还有一些小修复，具体看[commit log](https://github.com/fantasylidong/CompetitiveWithAnne/commits/master)

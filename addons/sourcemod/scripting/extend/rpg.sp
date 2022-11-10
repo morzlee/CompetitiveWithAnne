@@ -421,6 +421,10 @@ public void EventReturnBlood(Handle event, const char []name, bool dontBroadcast
 	int victim = GetClientOfUserId(GetEventInt(event, "userid", 0));
 	int attacker = GetClientOfUserId(GetEventInt(event, "attacker", 0));
 	int var2 = victim;
+	if(IsValidClient(victim)){
+		DisableGlow( victim );
+		DisableSkin( victim );
+	}
 	if (MaxClients >= var2 && 1 <= var2)
 	{
 		if (GetClientTeam(victim) == 3)

@@ -1,5 +1,27 @@
 # **AnneHappy 插件带上对抗插件包**
 * 为了保持插件包结构和上游一样方便同步，这个插件包将不会带有nav修改文件和跳舞插件的模型与声音，AnneHappy的Nav修改文件请到我的[anne项目](https://github.com/fantasylidong/anne)中下载
+* 当前版本已经是进入stable模式，大部分核心插件更新可以通过join插件自动更新，不用那么频繁检测是否有更新了
+
+## **AnneHappy 会自动更新的核心插件**
+- "Path_SM/plugins/optional/AnneHappy/ai_boomer_new.smx"
+- "Path_SM/plugins/optional/AnneHappy/ai_charger_2.smx"
+- "Path_SM/plugins/optional/AnneHappy/AI_HardSI_2.smx"
+- "Path_SM/plugins/optional/AnneHappy/ai_hunter_new.smx"
+- "Path_SM/plugins/optional/AnneHappy/ai_smoker_new.smx"
+- "Path_SM/plugins/optional/AnneHappy/ai_spitter_new.smx"
+- "Path_SM/plugins/optional/AnneHappy/ai_jockey_new.smx"
+- "Path_SM/plugins/optional/AnneHappy/ai_tank_2.smx"
+- "Path_SM/plugins/optional/AnneHappy/infected_control.smx"
+- "Path_SM/plugins/optional/AnneHappy/text.smx"
+- "Path_SM/plugins/optional/AnneHappy/server.smx"
+- "Path_SM/plugins/optional/AnneHappy/witch_announce.smx"
+- "Path_SM/plugins/optional/AnneHappy/SI_Target_limit.smx"
+- "Path_SM/plugins/optional/AnneHappy/l4d_target_override.smx"
+- "Path_SM/plugins/optional/AnneHappy/l4d2_Anne_stuck_tank_teleport.smx"
+- "Path_SM/plugins/extend/rpg.smx"
+- "Path_SM/plugins/extend/l4d_stats.smx"
+- "Path_SM/plugins/extend/join.smx"
+- "Path_SM/plugins/extend/server_name.smx"
 
 ## **关于新增模式:**
 
@@ -22,6 +44,7 @@
 ## **已知问题:**
 * 小刀为TLS更新前的原版小刀
 * AnneHappy模式猴子有可能会将生还者传送到虚空【重要问题】，有临时修复，会在0.1s后将虚空的生还者传送回来，如果你找到问题是怎么发生的，请反馈一下，谢谢
+* AnneHappy模式过关统计会把这一章节所有统计信息全部记录，因为对抗模式每回合不会清除统计信息（原来的方式不能正确载入对抗地图和对抗的梯子和nav）【我觉得这是Feature不是Bug，笑，反正普通信息mvp插件能够正常记录了，所以也不准备修改了】
 * ~~对抗原生的更换队伍不能用，使用join.smx插件进行换队(!inf !infected 感染 !jg !join 生还 !spec !afk旁观）~~ 已解决
 
 ## **无数据库服务器安装问题:**
@@ -53,12 +76,14 @@
 
 > **Additional Plugins/Extensions:**
 * GlowingTree880 特感能力加强的巨大贡献者
+* umlka 帮助我解决了coop_base_versus很多问题
 
 > **Competitive Mapping Rework:**
 * Derpduck, morzlee 地图修改
 
 > **Testing/Issue Reporting:**
 * Too many to list, keep up the great work in reporting issues!
+* 所有电信服玩家，因为没有时间游玩测试，大部分bug都是由他们反馈给我
 
 **注意事项:** 如果你的作品被使用了，而我却忘了归功于你，我真诚地向你道歉。 
 我已经尽力将名单上的每个人都包括在内，只要创建一个问题，并说出你所制作/贡献的插件/扩展，我就会确保适当地记入你的名字。
