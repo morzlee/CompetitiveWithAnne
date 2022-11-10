@@ -252,7 +252,7 @@ void GetCvars()
 	g_iEnableSIoption = g_hEnableSIoption.IntValue;
 	g_bAddDamageToSmoker = g_hAddDamageToSmoker.BoolValue;
 	g_bIgnoreIncappedSurvivorSight = g_hIgnoreIncappedSurvivorSight.BoolValue;
-	g_iSdkcallNum = g_hMaxSdkcallNum.IntValue;
+	g_iSdkcallLimit = g_hMaxSdkcallNum.IntValue;
 	if(g_hAllChargerMode.BoolValue){
 		TweakSettings();
 	}
@@ -364,10 +364,11 @@ public void evt_PlayerDeath(Event event, const char[] name, bool dontBroadcast)
 		}
 		if(g_bIsInTeleport[client]){
 			g_bIsInTeleport[client] = false;
-			g_iSdkcallLimit--;
+			g_iSdkcallNum--;
+			Debug_Print("%N在传送过程中被击杀，传送结束, 当前sdk限制 (%d/%d)",client, g_iSdkcallNum, g_iSdkcallLimit);
 		}	
-	}
-	g_iTeleCount[client] = 0;
+		g_iTeleCount[client] = 0;
+	}	
 }
 
 public Action Timer_KickBot(Handle timer, int client)
@@ -716,6 +717,7 @@ public Action SafeRoomReset(Handle timer)
 
 public void ResetStatus(){
 	g_iTotalSINum = 0;
+	g_iSdkcallNum = 0;
 	for (int client = 1; client <= MaxClients; client++)
 	{
 		if (IsInfectedBot(client) && IsPlayerAlive(client))
@@ -1027,7 +1029,7 @@ bool IsPinningSomeone(int client)
 
 bool CanBeTeleport(int client)
 {
-	if (IsInfectedBot(client) && IsClientInGame(client)&& IsPlayerAlive(client) && GetEntProp(client, Prop_Send, "m_zombieClass") != ZC_TANK && !g_bIsInTeleport[client] && g_iSdkcallNum < g_iSdkcallLimit)
+	if (IsInfectedBot(client) && IsClientInGame(client)&& IsPlayerAlive(client) && GetEntProp(client, Prop_Send, "m_zombieClass") != ZC_TANK && !g_bIsInTeleport[client])
 	{
 		return true;
 	}
@@ -1040,21 +1042,24 @@ bool CanBeTeleport(int client)
 //5秒内以1s检测一次，5次没被看到，就可以传送了
 public Action Timer_PositionSi(Handle timer)
 {
+	Debug_Print("传送检查, 间隔1s，当前sdk限制 (%d/%d)", g_iSdkcallNum, g_iSdkcallLimit);
 	for (int client = 1; client <= MaxClients; client++)
 	{
 		if(CanBeTeleport(client)){
+			Debug_Print("%N能够进行传送 当前sdk限制 (%d/%d)", client, g_iSdkcallNum, g_iSdkcallLimit);
 			float fSelfPos[3] = {0.0};
 			GetClientEyePosition(client, fSelfPos);
 			if (!PlayerVisibleToSDK(fSelfPos, true))
 			{
-				if (g_iTeleCount[client] > g_iTeleportCheckTime)
+				Debug_Print("%N没被看到，可以进行可视检查, 当前sdk限制 (%d/%d)", client, g_iSdkcallNum, g_iSdkcallLimit);
+				if (g_iTeleCount[client] > g_iTeleportCheckTime && g_iSdkcallNum < g_iSdkcallLimit)
 				{
-					Debug_Print("%N开始传送",client);
 					if (!PlayerVisibleToSDK(fSelfPos, true))
 					{
 						SDKHook(client, SDKHook_PostThinkPost, SDK_UpdateThink);
 						g_bIsInTeleport[client] = true;
 						g_iSdkcallNum ++;
+						Debug_Print("%N开始传送, 当前sdk限制 (%d/%d)",client, g_iSdkcallNum, g_iSdkcallLimit);
 						g_iTeleCount[client] = 0;
 					}
 				}
@@ -1075,7 +1080,7 @@ bool IsSpitter(int client)
 {
 	if (IsInfectedBot(client) && IsPlayerAlive(client) && GetEntProp(client, Prop_Send, "m_zombieClass") == ZC_SPITTER)
 	{
-		g_iTeleCount[client] = 50;//给予spitter立即传送的权限
+		g_iTeleCount[client] = 6;//给予spitter立即传送的权限
 		return true;
 	}
 	else
@@ -1134,7 +1139,8 @@ public void SDK_UpdateThink(int client)
 			}
 			SDKUnhook(client, SDKHook_PostThinkPost, SDK_UpdateThink);
 			g_bIsInTeleport[client] = false;
-			g_iSdkcallLimit--;
+			g_iSdkcallNum--;
+			Debug_Print("%N取消传送, 当前sdk限制 (%d/%d)",client, g_iSdkcallNum, g_iSdkcallLimit);
 			return;
 		}
 		g_iTeleCount[client] = 0;
@@ -1204,7 +1210,8 @@ void HardTeleMode(int client)
 							TeleportEntity(client, fSpawnPos, NULL_VECTOR, NULL_VECTOR);
 							SDKUnhook(client, SDKHook_PostThinkPost, SDK_UpdateThink);
 							g_bIsInTeleport[client] = false;
-							g_iSdkcallLimit--;
+							g_iSdkcallNum--;
+							Debug_Print("%N结束传送, 当前sdk限制 (%d/%d)",client, g_iSdkcallNum, g_iSdkcallLimit);
 							return;
 						}
 					}
