@@ -73,10 +73,11 @@
 * morzlee 本分支创建者及维护者
 * Caibiiii 原分支创建者
 * HoongDou 原分支创建者
+* Moyu 原分支创建者
 
 > **Additional Plugins/Extensions:**
 * GlowingTree880 特感能力加强的巨大贡献者
-* umlka 帮助我解决了coop_base_versus很多问题
+* umlka 完美解决了coop_base_versus问题
 
 > **Competitive Mapping Rework:**
 * Derpduck, morzlee 地图修改

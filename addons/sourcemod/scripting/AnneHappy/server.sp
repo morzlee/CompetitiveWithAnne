@@ -66,37 +66,7 @@ public void OnPluginStart()
 	hMaxSurvivors.AddChangeHook(ConVarChanged_Cvars);
 	hCvarAutoKickTank.AddChangeHook(ConVarChanged_Cvars);
 	GetCvars();
-	HookUserMessage(GetUserMessageId("VGUIMenu"), blockvgui, true);
-	HookUserMessage(GetUserMessageId("PZEndGamePanelMsg"), blockMessage, true);
-	HookUserMessage(GetUserMessageId("PZEndGamePanelVoteRegisteredMsg"), blockMessage, true);
-	HookUserMessage(GetUserMessageId("PZEndGameVoteStatsMsg"), blockMessage, true);
-	//HookUserMessage(GetUserMessageId("VGUIMenu"), blockvgui2, true);
 } 
-
-public Action L4D2_OnEndVersusModeRound(bool countsurvivor)
-{
-	if(countsurvivor){
-		SetConVarString(FindConVar("mp_gamemode"), "realism");
-	}
-	return Plugin_Continue;
-}
-
-
-
-public Action blockvgui(UserMsg msg_id, BfRead msg, const int[] players, int playersNum, bool reliable, bool init){
-	static char buffer[254];
-	msg.ReadString(buffer, sizeof buffer);
-	if (StrContains(buffer, "fullscreen_vs_") != -1 || StrContains(buffer, "info_window") != -1) {
-		return Plugin_Handled;
-	}
-
-	return Plugin_Continue;
-}
-
-public Action blockMessage(UserMsg msg_id, BfRead msg, const int[] players, int playersNum, bool reliable, bool init){
-	return Plugin_Handled;
-}
-
 
 public void ConVarChanged_Cvars(Handle convar, const char[] oldValue, const char[] newValue)
 {

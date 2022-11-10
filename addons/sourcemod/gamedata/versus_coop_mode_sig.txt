@@ -2,9 +2,20 @@
 {
 	"left4dead2" 
 	{
+		"Functions"
+		{
+			"DD::CDirectorVersusMode::RestartVsMode"
+			{
+				"signature"		"CDirectorVersusMode::RestartVsMode"
+				"callconv"		"thiscall"
+				"return"		"void"
+				"this"			"address"
+			}
+		}
+
 		"MemPatches"
 		{
-			"SwapTeams::Ptach1"
+			"SwapTeams::Patch1"
 			{
 				"signature"		"CDirector::Restart"
 
@@ -14,16 +25,9 @@
 					"verify"	"\x0F\x85"
 					"patch"		"\x90\x90\x90\x90\x90\x90"
 				}
-				
-				"windows"
-				{
-					"offset"	"3CFh"
-					"verify"	"\x0F\x85"
-					"patch"		"\x90\x90\x90\x90\x90\x90"
-				}
 			}
 
-			"SwapTeams::Ptach2"
+			"SwapTeams::Patch2"
 			{
 				"signature"		"CDirectorVersusMode::RestartVersusLevelOnVote"
 
@@ -33,16 +37,9 @@
 					"verify"	"\x75"
 					"patch"		"\x90\x90"
 				}
-				
-				"windows"
-				{
-					"offset"	"1Ah"
-					"verify"	"\x75"
-					"patch"		"\x90\x90"
-				}
 			}
 
-			"CleanUpMap::ShouldCreateEntity::Ptach"
+			"CleanUpMap::ShouldCreateEntity::Patch"
 			{
 				"signature"		"CleanUpMap::ShouldCreateEntity"
 
@@ -52,49 +49,29 @@
 					"verify"	"\x75"
 					"patch"		"\x90\x90"
 				}
-				
-				"windows"
-				{
-					"offset"	"11h"
-					"verify"	"\x75"
-					"patch"		"\x90\x90"
-				}
 			}
-			"VersusScoreboard::Ptach1"
+
+			"CDirectorVersusMode::RestartVsMode::Patch1"
 			{
-				"signature"		"CDirector::InitiateEndScenario"
+				"signature"		"CDirectorVersusMode::RestartVsMode"
 
 				"linux"
 				{
-					"offset"	"4Ah"
-					"verify"	"\x75"
-					"patch"		"\x90\x90"
-				}
-				
-				"windows"
-				{
-					"offset"	"1E5h"
+					"offset"	"27h"
 					"verify"	"\x75"
 					"patch"		"\xEB"
 				}
 			}
 
-			"VersusScoreboard::Ptach3"
+			"CDirectorVersusMode::RestartVsMode::Patch2"
 			{
-				"signature"		"CDirector::UpdateScenarioState"
+				"signature"		"CDirectorVersusMode::RestartVsMode"
 
 				"linux"
 				{
-					"offset"	"261h"
-					"verify"	"\xE8"
-					"patch"		"\x90\x90\x90\x90\x90"
-				}
-				
-				"windows"
-				{
-					"offset"	"1E5h"
+					"offset"	"27h"
 					"verify"	"\x75"
-					"patch"		"\xEB"
+					"patch"		"\x90\x90"
 				}
 			}
 		}
@@ -109,20 +86,6 @@
 				"windows"	"\x2A\x2A\x2A\x2A\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x56\x8B\x2A\x83\x2A\x2A\x89"
 				/* ? ? ? ? ? ? A1 ? ? ? ? 33 ? 89 ? ? 56 8B ? 83 ? ? 89 */
 			}
-			
-			/* CDirector::InitiateEndScenario(CDirector *__hidden this) */
-			"CDirector::InitiateEndScenario"
-			{
-				"library"	"server"
-				"linux"		"@_ZN9CDirector19InitiateEndScenarioEv"
-			}
-			
-			/* CDirector::UpdateScenarioState(CDirector *__hidden this) */
-			"CDirector::UpdateScenarioState"
-			{
-				"library"	"server"
-				"linux"		"@_ZN9CDirector19UpdateScenarioStateEv"
-			}
 
 			/* CDirectorVersusMode::RestartVersusLevelOnVote(CDirectorVersusMode *__hidden this) */
 			"CDirectorVersusMode::RestartVersusLevelOnVote"
@@ -136,6 +99,13 @@
 			{
 				"library"	"server"
 				"linux"		"@_ZZN16CTerrorGameRules10CleanUpMapEvEN22CTerrorMapEntityFilter18ShouldCreateEntityEPKc"
+			}
+
+			/* CDirectorVersusMode::RestartVsMode(CDirectorVersusMode *__hidden this) */
+			"CDirectorVersusMode::RestartVsMode"
+			{
+				"library"	"server"
+				"linux"		"@_ZN19CDirectorVersusMode13RestartVsModeEv"
 			}
 		}
 	}
