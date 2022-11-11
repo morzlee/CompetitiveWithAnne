@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION		"1.120"
+#define PLUGIN_VERSION		"1.121"
 
 #define DEBUG				0
 // #define DEBUG			1	// Prints addresses + detour info (only use for debugging, slows server down)
@@ -28,7 +28,7 @@
 
 #define KILL_VSCRIPT		0	// 0=Keep VScript entity after using for "GetVScriptOutput". 1=Kill the entity after use (more resourceful to keep recreating, use if you're maxing out entities and reaching the limit regularly).
 
-#define ALLOW_UPDATER		0	// 0=Off. 1=Allow the plugin to auto-update using the "Updater" plugin by "GoD-Tony". 2=Allow updating and reloading after update.
+#define ALLOW_UPDATER		1	// 0=Off. 1=Allow the plugin to auto-update using the "Updater" plugin by "GoD-Tony". 2=Allow updating and reloading after update.
 
 
 
@@ -503,6 +503,7 @@ public void OnPluginStart()
 		g_iAttackTimer = FindSendPropInfo("CTerrorWeapon", "m_attackTimer");
 	g_iOffsetAmmo = FindSendPropInfo("CTerrorPlayer", "m_iAmmo");
 	g_iPrimaryAmmoType = FindSendPropInfo("CBaseCombatWeapon", "m_iPrimaryAmmoType");
+
 
 
 	// NULL PTR - METHOD (kept for demonstration)

@@ -21,8 +21,10 @@ char sLogFile[PLATFORM_MAX_PATH] = "addons/sourcemod/logs/SITargetLimit.txt";
 #pragma semicolon 1
 #include <sourcemod>
 #include <left4dhooks>
+#undef REQUIRE_PLUGIN
+#include <l4d_target_override>
 
-#define PLUGIN_VERSION "1.1"
+#define PLUGIN_VERSION "1.3"
 ConVar	
 	g_hPluginEnable,
 	g_hSI_enable_option,
@@ -39,39 +41,46 @@ int
 	g_iLimit_manual = 0,
 	g_iSILimit = 0;
 enum struct PlayerStruct{
-	int targetSum;
 	int targetLimit;
 	void PlayerStruct(){
-		this.targetSum = 0;
 		if(g_iLimit_auto){
 			int temp = GetMobileSurvivorNum();
 			if(temp < 1) temp = 1;
 			this.targetLimit = (g_iSILimit / temp) + 1;
+			this.target_override_set(this.targetLimit);
 		}
 			
-		else
+		else{
 			this.targetLimit = g_iLimit_manual;
+		}
 	}
 	void SetTargetLimit(int number){
-		if(g_iLimit_auto)
-			this.targetLimit = number;
+		if(g_iLimit_auto){
+			this.targetLimit = number;	
+			this.target_override_set(this.targetLimit);		
+		}
 		else
+		{
 			this.targetLimit = g_iLimit_manual;
+			this.target_override_set(this.targetLimit);
+		}
 	}
-	bool IsReachLimit(){
-		return this.targetSum >= this.targetLimit;
+	void target_override_set(int num){
+		for(int i = 0; i < 7; i++){
+			if(CheckSIOption(i)){
+				L4D_TargetOverride_SetOption(view_as<TARGET_SI_INDEX>(i), INDEX_TARGETED, num);
+				//Debug_Print("所有启用特感target值更改为 %d", L4D_TargetOverride_GetOption(view_as<TARGET_SI_INDEX>(i), INDEX_TARGETED));
+			}	
+			else{
+				L4D_TargetOverride_SetOption(view_as<TARGET_SI_INDEX>(i), INDEX_TARGETED, 0);
+				//Debug_Print("所有不启用特感target值更改为 %d", L4D_TargetOverride_GetOption(view_as<TARGET_SI_INDEX>(i), INDEX_TARGETED));
+			}
+		}
 	}
 }
-enum struct InfectedStruct{
-	bool enable;
-	int target;
-	void InfectedStruct(){
-		this.enable = false;
-		this.target = -1;
-	}
-}
+
 PlayerStruct player[MAXPLAYERS + 1];
-InfectedStruct infected[MAXPLAYERS + 1];
+bool infected[MAXPLAYERS + 1];
 public Plugin myinfo =
 {
 	name = "SI target limit",
@@ -83,6 +92,7 @@ public Plugin myinfo =
 /*
 Changelog
 2022.9.20
+1.2 适配l4d_target_override
 1.0 初始版本发布
 */
 public void  OnPluginStart()
@@ -107,11 +117,23 @@ public void  OnPluginStart()
 	g_hLimit_manual.AddChangeHook(ConVarChanged_Cvars);
 	g_hSI_enable_option.AddChangeHook(ConVarChanged_Cvars);
 	g_hPluginEnable.AddChangeHook(ConVarChanged_Cvars);
+	g_hSILimit.AddChangeHook(ConVarChanged_Cvars);
 	
 	GetCvars();
 	StructInit();
 	//AutoExecConfig(true, "RestrictedGameModes");
 }
+
+public void OnPluginEnd(){
+	clear_target_option();
+}
+
+public void clear_target_option(){
+		for(int i = 0; i < 7; i++){
+			L4D_TargetOverride_SetOption(view_as<TARGET_SI_INDEX>(i), INDEX_TARGETED, 0);
+			//Debug_Print("所有不启用特感target值更改为 %d", L4D_TargetOverride_GetOption(view_as<TARGET_SI_INDEX>(i), INDEX_TARGETED));
+		}
+	}
 
 //创建Native函数给其他插件使用
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
@@ -142,7 +164,7 @@ public int Native_GetClientTargetNum(Handle plugin, int numParams)
 	}
 	//Debug_Print("GetClientTargetNum Native called");
 	
-	return player[client].targetSum;
+	return L4D_TargetOverride_GetValue(client, view_as<VALUE_OPTION_INDEX>(VALUE_INDEX_TOTAL));
 }
 
 public int Native_IsClientReachLimit(Handle plugin, int numParams)
@@ -159,16 +181,15 @@ public int Native_IsClientReachLimit(Handle plugin, int numParams)
 	}
 	//Debug_Print("IsClientReachLimit Native被调用");
 	//Debug_Print("IsClientReachLimit Native called");
-	return player[client].IsReachLimit();
+	return IsReachLimit(client);
 }
 
-// 事件
+// 事件 event
 public void evt_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	if(IsValidClient(client) && GetClientTeam(client) == 3){
-		infected[client].enable = view_as<bool>(CheckSIOption(client));
-		infected[client].target = -1;
+		infected[client] = view_as<bool>(CheckSIOption(GetEntProp(client, Prop_Send, "m_zombieClass")));
 	}
 }
 
@@ -184,21 +205,8 @@ public void evt_PlayerDeath(Event event, const char[] name, bool dontBroadcast)
 				player[i].SetTargetLimit(normalSur);
 			}	
 		}
-		if(GetClientTeam(client) == 3){
-			if(infected[client].target > 0){
-				if( player[infected[client].target].targetSum > 0 ){
-					player[infected[client].target].targetSum --;
-					Debug_Print("%N 已死亡，原来的目标 %N 上限减1 为 %d(%d)", client, infected[client].target, player[infected[client].target].targetSum, player[infected[client].target].targetLimit);
-					//Debug_Print("%N died，Original Survivor %N target limit minus 1 to %d(%d)", client, infected[client].target, player[infected[client].target].targetSum, player[infected[client].target].targetLimit);
-				}
-			}	
-			else{
-					Debug_Print("%N 已死亡，无目标", client);
-					//Debug_Print("%N died，no target selected", client);
-			}	
-			
-			infected[client].target = -1;
-			infected[client].enable = false;
+		if(GetClientTeam(client) == 3 && infected[client]){
+			infected[client] = false;
 		}
 	}
 	
@@ -224,7 +232,6 @@ public void evt_InfectedDeath(Event event, const char[] name, bool dontBroadcast
 	
 }
 */
-
 
 public void evt_PlayerRevive(Event event, const char[] name, bool dontBroadcast)
 {
@@ -252,8 +259,9 @@ public void evt_PlayerIncap(Event event, const char[] name, bool dontBroadcast)
 	}
 }
 
-public int CheckSIOption(int client){
-    int iZombieClass = GetEntProp(client, Prop_Send, "m_zombieClass");
+
+//Check SI enable option
+public int CheckSIOption(int iZombieClass){
     switch (iZombieClass)
     {
         case 1:
@@ -280,7 +288,11 @@ public int CheckSIOption(int client){
         {
             return 1 << 5 & g_iSI_enable_option;
         }
-        case 8:
+        case 0:
+        {
+            return 1 << 6 & g_iSI_enable_option;
+        }
+		case 8:
         {
             return 1 << 6 & g_iSI_enable_option;
         }
@@ -296,11 +308,12 @@ void ConVarChanged_Cvars(ConVar convar, const char[] oldValue, const char[] newV
 	GetCvars();
 }
 
+//Init Struct
 public void StructInit(){
 	for(int i = 0; i < MAXPLAYERS + 1; i++)
 	{
 		player[i].PlayerStruct();
-		infected[i].InfectedStruct();
+		infected[i] = false;
 	}
 }
 
@@ -317,19 +330,28 @@ public void OnMapStart()
 }
 public Action L4D_OnFirstSurvivorLeftSafeArea(int client){
 	//GetCvars();
-	StructInit();
+    StructInit();
+	
+    return Plugin_Continue;
 }
-
+/*
+//SI choose another target, delete originalTarget limit
 public void deleteOrginalTarget(int specialInfected){
 	//将特感原来的目标的targetSum减1 original target minus 1
 	if(infected[specialInfected].target > 0 && player[infected[specialInfected].target].targetSum > 0){
-		//Debug_Print("%N 原来的目标为 %N %d(%d)", specialInfected, infected[specialInfected].target, player[infected[specialInfected].target].targetSum, player[infected[specialInfected].target].targetLimit);
+		Debug_Print("%N 原来的目标为 %N[%N] (%d/%d)[%d]", specialInfected, \
+														infected[specialInfected].target, \
+														L4D_TargetOverride_GetValue(specialInfected, view_as<VALUE_OPTION_INDEX>(VALUE_INDEX_VICTIM)), \
+														player[infected[specialInfected].target].targetSum, \
+														player[infected[specialInfected].target].targetLimit);
 		player[infected[specialInfected].target].targetSum --;
 		//清除当前特感的值
 		infected[specialInfected].target = -1;
 	}
 }
 
+
+//Deal with SI change target
 //特感选择目标，对对应特感进行处理
 public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget){
 	if(IsValidClient(specialInfected) && GetClientTeam(specialInfected) == 3 && g_bPluginEnable && infected[specialInfected].enable && infected[specialInfected].target != curTarget){
@@ -374,6 +396,81 @@ public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget){
 	return Plugin_Continue;
 }
 
+public Action L4D_OnTargetOverride(int specialInfected, int &curTarget, int order){
+	if(IsValidClient(specialInfected) && GetClientTeam(specialInfected) == 3 && g_bPluginEnable && infected[specialInfected].enable && infected[specialInfected].target != curTarget){
+		if(IsValidClient(curTarget) && GetClientTeam(curTarget) == 2){
+			//如果转换的目标已经达到限制
+			if(player[curTarget].IsReachLimit()){
+				//如果原来有目标，保持原来目标不变
+				if(infected[specialInfected].target > 0 && !player[infected[specialInfected].target].IsReachLimit()){
+					int temp = infected[specialInfected].target;
+					Debug_Print("%N 选择的目标 %N 已经到达上限 (%d/%d)[%d/%d] 个，切换为目标未满的原目标 %N[%N] (%d/%d)[%d/%d]", specialInfected, \
+																													curTarget, \
+																													player[curTarget].targetSum, \
+																													player[curTarget].targetLimit, \
+																													L4D_TargetOverride_GetValue(curTarget, view_as<VALUE_OPTION_INDEX>(VALUE_INDEX_TOTAL)), \
+																													temp, \
+																													L4D_TargetOverride_GetValue(specialInfected, view_as<VALUE_OPTION_INDEX>(VALUE_INDEX_VICTIM)), \
+																													player[temp].targetSum, \
+																													player[temp].targetLimit,  \
+																													L4D_TargetOverride_GetValue(temp, view_as<VALUE_OPTION_INDEX>(VALUE_INDEX_TOTAL)));
+					curTarget = infected[specialInfected].target;
+					return Plugin_Changed;
+				}
+				//如果没有其他目标，获取其他没达到目标限制的正常生还者分给这个特感
+				int temp = GetRandomMobileSurvivor(curTarget, true);
+				//没有这样的人了，依旧用调用的切换对象
+				if(temp == 0)
+				{
+					//curTarget = temp;
+					deleteOrginalTarget(specialInfected);
+					player[curTarget].targetSum ++;
+					infected[specialInfected].target = curTarget;
+					Debug_Print("%N 已经没有可选择的目标,选择默认目标 %N (%d/%d)[%d]", specialInfected, \
+																					curTarget, \
+																					player[curTarget].targetSum, \
+																					player[curTarget].targetLimit,  \
+																					L4D_TargetOverride_GetValue(curTarget, view_as<VALUE_OPTION_INDEX>(VALUE_INDEX_TOTAL)));
+					return Plugin_Continue;
+				//有，切换目标
+				}else{	
+					deleteOrginalTarget(specialInfected);
+					infected[specialInfected].target = temp;
+					player[temp].targetSum ++;
+					Debug_Print("%N 选择的目标 %N 已经到达上限 (%d/%d)[%d] 个，将目标更换为 %N (%d/%d)[%d]", specialInfected, \
+																										curTarget, \
+																										player[curTarget].targetSum, \
+																										player[curTarget].targetLimit,  \
+																										L4D_TargetOverride_GetValue(curTarget, view_as<VALUE_OPTION_INDEX>(VALUE_INDEX_TOTAL)), \
+																										temp, \
+																										player[temp].targetSum, \
+																										player[temp].targetLimit, \
+																										L4D_TargetOverride_GetValue(temp, view_as<VALUE_OPTION_INDEX>(VALUE_INDEX_TOTAL)));
+					curTarget = temp;
+					return Plugin_Changed;
+				}			
+			}else{
+				deleteOrginalTarget(specialInfected);
+				player[curTarget].targetSum ++;				
+				infected[specialInfected].target = curTarget;
+				Debug_Print("%N 选择目标为%N (%d/%d)[%d]", specialInfected, curTarget, player[curTarget].targetSum, player[curTarget].targetLimit, \
+															L4D_TargetOverride_GetValue(curTarget, view_as<VALUE_OPTION_INDEX>(VALUE_INDEX_TOTAL)));
+			}
+		}
+	}
+	return Plugin_Continue;
+}
+*/
+//不再对目标进行处理，只进行track
+public Action L4D_OnTargetOverride(int specialInfected, int &curTarget, int order){
+	if(IsValidClient(specialInfected) && GetClientTeam(specialInfected) == 3 && g_bPluginEnable && infected[specialInfected]){
+		if(IsValidClient(curTarget) && GetClientTeam(curTarget) == 2){			
+			Debug_Print("%N 选择目标为%N (%d/%d)", specialInfected, curTarget, L4D_TargetOverride_GetValue(curTarget, view_as<VALUE_OPTION_INDEX>(VALUE_INDEX_TOTAL)), player[curTarget].targetLimit);
+		}
+	}
+	return Plugin_Continue;
+}
+
 //随机获得一个未达到目标限制的正常生还者
 stock int GetRandomMobileSurvivor(int excluse = -1, bool CheckLimit = false)
 {
@@ -382,7 +479,7 @@ stock int GetRandomMobileSurvivor(int excluse = -1, bool CheckLimit = false)
 	{
 		if (IsClientConnected(client) && IsClientInGame(client) && GetClientTeam(client) == 2 && IsPlayerAlive(client) && !L4D_IsPlayerIncapacitated(client) && client != excluse)
 		{
-			if(CheckLimit && player[client].IsReachLimit())
+			if(CheckLimit && IsReachLimit(client))
 				continue;
 			survivors[index] = client;
 			index += 1;
@@ -433,6 +530,9 @@ stock bool IsValidClient(int client)
 		return false;
 	}
 }
+stock bool IsReachLimit(int client){
+		return L4D_TargetOverride_GetValue(client, view_as<VALUE_OPTION_INDEX>(VALUE_INDEX_TOTAL)) >= player[client].targetLimit;
+	}
 
 stock void Debug_Print(char[] format, any ...)
 {

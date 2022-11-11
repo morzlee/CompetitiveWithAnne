@@ -396,9 +396,16 @@ public void OnGameFrame()
 		int zombieclass = 0;
 		if (aSpawnQueue.Length < g_iSiLimit)
 		{
-			zombieclass = IsBotTypeNeeded();
+			if(g_hAllChargerMode.BoolValue){
+				zombieclass =  6;
+			}
+			else if(g_hAllHunterMode.BoolValue){
+				zombieclass =  3;
+			}else{
+				zombieclass = GetRandomInt(1,6);
+			}		
 		}
-		if (zombieclass != 0 && g_ArraySIlimit[zombieclass - 1] > 0 && !HasReachedLimit(zombieclass) && g_iQueueIndex < g_iSiLimit)
+		if (zombieclass != 0 && MeetRequire(zombieclass) && !HasReachedLimit(zombieclass) && g_iQueueIndex < g_iSiLimit)
 		{
 			//这里增加一些boomer和spitter生成的判定，让bommer和spitter比较晚生成
 			aSpawnQueue.Push(g_iQueueIndex);
@@ -518,7 +525,6 @@ public void OnGameFrame()
 								g_iSpawnMaxCount = 0;
 								aSpawnQueue.Resize(1);
 								g_iQueueIndex = 0;
-								GetSiLimit();
 							}
 						}
 					}
@@ -1293,88 +1299,52 @@ stock int getArrayDominateSINum(){
 }
 
 // 返回在场特感数量，根据 z_%s_limit 限制每种特感上限
-int IsBotTypeNeeded()
+bool MeetRequire(int iType)
 {
 	GetSiLimit();
-	if(g_hAllChargerMode.BoolValue){
-		return 6;
-	}
-	if(g_hAllHunterMode.BoolValue){
-		return 3;
-	}
-	int iType = GetRandomInt(1, 6);
 	if (iType == 1)
 	{
 		if (CheckSIOption(iType) && (g_ArraySIlimit[iType - 1] > 0))
 		{
-//			iSmokerLimit++;
-			return 1;
-		}
-		else
-		{
-			IsBotTypeNeeded();
+			return true;
 		}
 	}
 	else if (iType == 2)
 	{
-		if (CheckSIOption(iType) && (g_ArraySIlimit[iType - 1] > 0) && (getArrayDominateSINum() > (g_iSiLimit/4 +1)))
+		if (CheckSIOption(iType) && (g_ArraySIlimit[iType - 1] > 0) && ((getArrayDominateSINum() > (g_iSiLimit/4 +1)) || (g_iQueueIndex >= g_iSiLimit -2)))
 		{
-				return 2;
-		}
-		else
-		{
-			IsBotTypeNeeded();
+			return true;
 		}
 	}
 	else if (iType == 3)
 	{
 		if (CheckSIOption(iType) && (g_ArraySIlimit[iType - 1] > 0))
 		{
-		//	iHunterLimit++;
-			return 3;
-		}
-		else
-		{
-			IsBotTypeNeeded();
+			return true;
 		}
 	}
 	else if (iType == 4)
 	{
-		if (CheckSIOption(iType) && (g_ArraySIlimit[iType - 1] > 0) && (getArrayHunterAndChargetNum() > (g_iSiLimit/5 +1)))
+		if (CheckSIOption(iType) && (g_ArraySIlimit[iType - 1] > 0) && ((getArrayHunterAndChargetNum() > (g_iSiLimit/5 +1) || (g_iQueueIndex >= g_iSiLimit -2))))
 		{
-			//	iSpitterLimit++;
-			return 4;
-		}
-		else
-		{
-			IsBotTypeNeeded();
+			return true;
 		}
 	}
 	else if (iType == 5)
 	{
 		if (CheckSIOption(iType) && (g_ArraySIlimit[iType - 1] > 0))
 		{
-			//iJockeyLimit++;
-			return 5;
-		}
-		else
-		{
-			IsBotTypeNeeded();
+			return true;
 		}
 	}
 	else if (iType == 6)
 	{
 		if (CheckSIOption(iType) && (g_ArraySIlimit[iType - 1] > 0))
 		{
-			//iChargerLimit++;
-			return 6;
-		}
-		else
-		{
-			IsBotTypeNeeded();
+			return true;
 		}
 	}
-	return 0;
+	return false;
 }
 
 // 特感种类限制数组，刷完一波特感时重新读取 Cvar 数值，重置特感种类限制数量
