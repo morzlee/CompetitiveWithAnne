@@ -77,8 +77,6 @@ public void OnAllPluginsLoaded() {
 }
 
 public void OnPluginEnd() {
-	FindConVar("hunter_committed_attack_range").RestoreDefault();
-	FindConVar("hunter_pounce_ready_range").RestoreDefault();
 	FindConVar("hunter_leap_away_give_up_range").RestoreDefault();
 	FindConVar("hunter_pounce_max_loft_angle").RestoreDefault();
 }
@@ -94,9 +92,7 @@ void CvarChanged(ConVar convar, const char[] oldValue, const char[] newValue) {
 
 void TweakSettings() {
 	OnAllPluginsLoaded();
-	FindConVar("z_pounce_silence_range").FloatValue =			999999.0;
 	FindConVar("hunter_pounce_max_loft_angle").FloatValue =		0.0;
-	FindConVar("hunter_committed_attack_range").FloatValue =	600.0;
 	FindConVar("hunter_leap_away_give_up_range").FloatValue =	0.0;
 }
 
@@ -140,11 +136,13 @@ void Event_AbilityUse(Event event, const char[] name, bool dontBroadcast) {
 public Action OnPlayerRunCmd(int client, int &buttons) {
 	if (!IsClientInGame(client) || !IsFakeClient(client) || GetClientTeam(client) != 3 || !IsPlayerAlive(client) || GetEntProp(client, Prop_Send, "m_zombieClass") != 3 || GetEntProp(client, Prop_Send, "m_isGhost"))
 		return Plugin_Continue;
+
 	if (L4D_IsPlayerStaggering(client))
-			return Plugin_Continue;
+		return Plugin_Continue;
+
 	static int flags;
 	flags = GetEntityFlags(client);
-	if (flags & FL_ONGROUND == 0 || (g_bIgnoreCrouch && flags & FL_DUCKING == 0) ||!GetEntProp(client, Prop_Send, "m_hasVisibleThreats"))
+	if (flags & FL_ONGROUND == 0 || (!g_bIgnoreCrouch && flags & FL_DUCKING == 0) ||!GetEntProp(client, Prop_Send, "m_hasVisibleThreats"))
 		return Plugin_Continue;
 	
 	buttons &= ~IN_ATTACK2;
@@ -216,7 +214,7 @@ bool HitWall(int client, float vStart[3]) {
 	AddVectors(vStart, vEnd, vEnd);
 
 	static Handle hTrace;
-	hTrace = TR_TraceHullFilterEx(vStart, vEnd, view_as<float>({-16.0, -16.0, 0.0}), view_as<float>({16.0, 16.0, 36.0}), MASK_PLAYERSOLID_BRUSHONLY, TraceEntityFilter);
+	hTrace = TR_TraceHullFilterEx(vStart, vEnd, view_as<float>({-16.0, -16.0, 0.0}), view_as<float>({16.0, 16.0, 33.0}), MASK_PLAYERSOLID, TraceEntityFilter);
 	if (TR_DidHit(hTrace)) {
 		static float vPlane[3];
 		TR_GetPlaneNormal(hTrace, vPlane);
@@ -231,10 +229,10 @@ bool HitWall(int client, float vStart[3]) {
 }
 
 bool TraceEntityFilter(int entity, int contentsMask) {
-	if (entity <= MaxClients)
+	if (/*entity > 0 && */entity <= MaxClients)
 		return false;
 
-	static char cls[9];
+	static char cls[10];
 	GetEntityClassname(entity, cls, sizeof cls);
 	if ((cls[0] == 'i' && strcmp(cls[1], "nfected") == 0) || (cls[0] == 'w' && strcmp(cls[1], "itch") == 0))
 		return false;
