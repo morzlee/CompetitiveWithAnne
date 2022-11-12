@@ -406,6 +406,11 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			//buttons &= ~IN_JUMP;
 			buttons &= ~IN_DUCK;
 		}
+		// 着火时，自动灭火
+		if (GetEntProp(client, Prop_Data, "m_fFlags") & FL_ONFIRE)
+		{
+			ExtinguishEntity(client);
+		}
 		// 生还者团灭了，跳起来嘲讽，按键时间不要过快，0.3 秒为最小间隔，如果在帧操作中一直按键则会导致按键不会执行
 		if (bIsSurvivorFailed)
 		{

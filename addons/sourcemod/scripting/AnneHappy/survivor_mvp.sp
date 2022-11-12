@@ -20,7 +20,8 @@ int
 	KillSpecial[MAXPLAYERS+1],
 	FriendDamage[MAXPLAYERS+1],
 	DamageFriend[MAXPLAYERS+1];
-
+bool
+	g_bIsPrintInfo;
 public void OnPluginStart()
 {
 	RegConsoleCmd("sm_mvp", MVPinfo);
@@ -29,10 +30,11 @@ public void OnPluginStart()
 	HookEvent("infected_death", infected_death);
 	HookEvent("player_hurt",Event_PlayerHurt);
 	HookEvent("round_start", event_RoundStart);
-	HookEvent("map_transition", PrintInfo, EventHookMode_PostNoCopy);
+	//HookEvent("map_transition", PrintInfo, EventHookMode_PostNoCopy);
 	HookEvent("round_end", PrintInfo, EventHookMode_PostNoCopy);
-	HookEvent("finale_win", PrintInfo, EventHookMode_PostNoCopy);
+	//HookEvent("finale_win", PrintInfo, EventHookMode_PostNoCopy);
 }
+
 public void event_RoundStart(Handle event, const char[] name, bool dontBroadcast)
 {
 	for (int i = 1; i <= MaxClients; i++)
@@ -42,6 +44,7 @@ public void event_RoundStart(Handle event, const char[] name, bool dontBroadcast
 		FriendDamage[i] =0 ;
 		DamageFriend[i] =0 ;
 		iDidDamage[i] = 0;
+		g_bIsPrintInfo = false;
 	}
 }
 public Action L4D_OnFirstSurvivorLeftSafeArea()
@@ -58,6 +61,11 @@ public Action L4D_OnFirstSurvivorLeftSafeArea()
 }
 public Action PrintInfo(Handle event, const char[] name, bool dontBroadcast)
 {
+	if(g_bIsPrintInfo){
+		return Plugin_Handled;
+	}else{
+		g_bIsPrintInfo = true;
+	}
 	PrintToChatAll("\x03[药役MVP统计]");
 	displaykillinfected();
 	return Plugin_Continue;

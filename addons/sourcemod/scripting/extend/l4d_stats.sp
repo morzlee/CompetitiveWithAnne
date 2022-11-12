@@ -102,7 +102,8 @@ new String:StatsSound_Rankmenu_Show[32];
 new String:StatsSound_Boomer_Vomit[32];
 new String:StatsSound_Hunter_Perfect[32];
 new String:StatsSound_Tank_Bulldozer[32];
-new bool:Isstart=false;
+new bool:Isstart = false;
+new bool:g_broundend = false;
 // Server version
 EngineVersion EngineVersion1 =  Engine_Left4Dead;
 
@@ -772,6 +773,7 @@ public OnPluginStart()
 	//AutoExecConfig(true, "l4d_stats");
 
 	// Personal Gain Events
+	HookEvent("round_end",	Event_RoundEnd);
 	HookEvent("player_death", event_PlayerDeath);
 	HookEvent("infected_death", event_InfectedDeath);
 	HookEvent("tank_killed", event_TankKilled);
@@ -1575,6 +1577,74 @@ public SetCurrentGamemodeName()
 	}
 }
 
+public Action Event_RoundEnd(Handle:event, String:event_name[], bool:dontBroadcast)
+{
+	if(!g_broundend && (AnneMultiPlayerMode() || SinglePlayerMode())){
+		g_broundend = true;
+	}else{
+		return Plugin_Handled;
+	}
+	if(!Isstart)
+		return Plugin_Continue;
+	UpdateMapStat("restarts", 1);
+	int Score=200;
+	if (!GetConVarBool(cvar_EnableNegativeScore))
+		return Plugin_Continue;
+	if (AnneMultiPlayerMode()){
+		Score = 200;
+	}else{
+		Score = 50;
+	}
+
+	
+	for(int i = 1; i <= MaxClients; i++){
+		if(IsClientConnected(i) && IsClientInGame(i) && GetClientTeam(i) == 2 && !IsFakeClient(i)){
+			StatsPrintToChat(i, "\x03所有幸存者 \x01都 \x03掉了 \x04%i \x01分 by \x03大家又坐牢了!", Score);
+			decl String:UpdatePoints[32];
+			decl String:UserID[MAX_LINE_WIDTH];
+			GetClientRankAuthString(i, UserID, sizeof(UserID));
+
+			switch (CurrentGamemodeID)
+			{
+				case GAMEMODE_VERSUS:
+				{
+					Format(UpdatePoints, sizeof(UpdatePoints), "points_survivors");
+				}
+				case GAMEMODE_REALISM:
+				{
+					Format(UpdatePoints, sizeof(UpdatePoints), "points_realism");
+				}
+				case GAMEMODE_SURVIVAL:
+				{
+					Format(UpdatePoints, sizeof(UpdatePoints), "points_survival");
+				}
+				case GAMEMODE_SCAVENGE:
+				{
+					Format(UpdatePoints, sizeof(UpdatePoints), "points_scavenge_survivors");
+				}
+				case GAMEMODE_REALISMVERSUS:
+				{
+					Format(UpdatePoints, sizeof(UpdatePoints), "points_realism_survivors");
+				}
+				case GAMEMODE_OTHERMUTATIONS:
+				{
+					Format(UpdatePoints, sizeof(UpdatePoints), "points_mutations");
+				}
+				default:
+				{
+					Format(UpdatePoints, sizeof(UpdatePoints), "points");
+				}
+			}
+
+			decl String:query[1024];
+			Format(query, sizeof(query), "UPDATE %splayers SET %s = %s + %i WHERE steamid = '%s'", DbPrefix, UpdatePoints, UpdatePoints, Score * -1, UserID);
+			SendSQLUpdate(query);
+		}
+	}
+	Isstart=false;	
+	return Plugin_Continue;
+}
+
 // Scavenge round start event (occurs when door opens or players leave the start area)
 
 public Action:event_ScavengeRoundStart(Handle:event, const String:name[], bool:dontBroadcast)
@@ -1593,6 +1663,7 @@ public Action:event_RoundStart(Handle:event, const String:name[], bool:dontBroad
 	MapTimingStartTime = 0.0;
 	MapTimingBlocked = false;
 	Isstart=true;
+	g_broundend = false;
 	AnneValidGame = true;
 	ResetRankChangeCheck();
 }
@@ -3244,11 +3315,7 @@ public InterstitialPlayerUpdate(client)
 
 	AddScore(client, TimerPoints[client]);
 }
-public Action L4D_OnFirstSurvivorLeftSafeArea(int client)
-{
-	Isstart=true;
-	return Plugin_Continue;
-}
+
 // Player Death event. Used for killing AI Infected. +2 on headshot, and global announcement.
 // Team Kill code is in the awards section. Tank Kill code is in Tank section.
 
@@ -6219,11 +6286,9 @@ public Action:event_Award_L4D2(Handle:event, const String:name[], bool:dontBroad
 			return;
 		if (AnneMultiPlayerMode()){
 			Score = 200;
-		}else if(IsNeko()){
-			Score = 50;
 		}
 		else {
-			Score=0;
+			Score= 50;
 		}
 		if (Mode)
 			StatsPrintToChat(User, "\x03所有幸存者 \x01都 \x03掉了 \x04%i \x01分 by \x03大家又坐牢了!", Score);
@@ -9922,8 +9987,8 @@ CheckSurvivorsAllDown()
 		SendSQLUpdate(query);
 	}
 
-	//if (Mode)
-		//StatsPrintToChatTeam(TEAM_SURVIVORS, "\x03所有幸存者 \x01 \x03失去了 \x04%i \x01分 by \x03全部坐牢\x01!", Score);
+	if (Mode)
+		StatsPrintToChatTeam(TEAM_SURVIVORS, "\x03所有幸存者 \x01 \x03失去了 \x04%i \x01分 by \x03全部坐牢\x01!", Score);
 }
 
 bool:IsClientIncapacitated(client)

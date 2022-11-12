@@ -1,11 +1,10 @@
 #pragma semicolon 1
 #pragma newdecls required
-#define DEBUG 1
+#define DEBUG 0
 // 头文件
 #include <sourcemod>
 #include <sdktools>
 #include <left4dhooks>
-#include <treeutil>
 #undef REQUIRE_PLUGIN
 #include <ai_smoker_new>
 #include <si_target_limit>
@@ -388,20 +387,17 @@ public void OnGameFrame()
 	{
 		CreateTimer(0.1, MaxSpecialsSet);
 	}
-	if (g_iQueueIndex < g_iSiLimit)
+	if (g_iTeleportIndex <= 0 && aSpawnQueue.Length < g_iSiLimit)
 	{
 		int zombieclass = 0;
-		if (aSpawnQueue.Length < g_iSiLimit)
-		{
-			if(g_hAllChargerMode.BoolValue){
-				zombieclass =  6;
-			}
-			else if(g_hAllHunterMode.BoolValue){
-				zombieclass =  3;
-			}else{
-				zombieclass = GetRandomInt(1,6);
-			}		
+		if(g_hAllChargerMode.BoolValue){
+			zombieclass =  6;
 		}
+		else if(g_hAllHunterMode.BoolValue){
+			zombieclass =  3;
+		}else{
+			zombieclass = GetRandomInt(1,6);
+		}		
 		if (zombieclass != 0 && MeetRequire(zombieclass) && !HasReachedLimit(zombieclass) && g_iQueueIndex < g_iSiLimit)
 		{
 			//这里增加一些boomer和spitter生成的判定，让bommer和spitter比较晚生成
@@ -422,7 +418,7 @@ public void OnGameFrame()
 				float fSpawnPos[3] = {0.0};
 				if(GetSpawnPos(fSpawnPos, g_iTargetSurvivor, g_fTeleportDistance, true))	{
 					int iZombieClass = aTeleportQueue.Get(0);
-					if(SpawnInfected(fSpawnPos, g_fTeleportDistance, iZombieClass)){
+					if(SpawnInfected(fSpawnPos, g_fTeleportDistance, iZombieClass, true)){
 						g_iSINum[iZombieClass - 1] += 1;
 						g_iTotalSINum += 1;
 						if (aTeleportQueue.Length > 0 && g_iTeleportIndex > 0)
@@ -434,11 +430,10 @@ public void OnGameFrame()
 					}
 					else
 					{
-						if (g_iSpawnMaxCount <= 0)
+						if (g_iTeleportIndex <= 0)
 						{
-							g_iSpawnMaxCount = 0;
-							aSpawnQueue.Resize(1);
-							g_iQueueIndex = 0;
+							aTeleportQueue.Resize(1);
+							g_iTeleportIndex = 0;
 						}
 					}
 				}
@@ -485,57 +480,61 @@ public void OnGameFrame()
 }
 
 stock bool GetSpawnPos(float fSpawnPos[3], int g_iTargetSurvivor, float SpawnDistance, bool IsTeleport = false){
-	float fSurvivorPos[3] = {0.0}, fDirection[3] = {0.0}, fEndPos[3] = {0.0}, fMins[3] = {0.0}, fMaxs[3] = {0.0};	
-	// 根据指定生还者坐标，拓展刷新范围
-	GetClientEyePosition(g_iTargetSurvivor, fSurvivorPos);
-	//增加高度，增加刷房顶的几率
-	if(SpawnDistance < 500.0)
-	{
-		fMaxs[2] = fSurvivorPos[2] + 800.0;
-	}
-	else
-	{
-		fMaxs[2] = fSurvivorPos[2] + SpawnDistance + 300.0;
-	}
-	fMins[0] = fSurvivorPos[0] - SpawnDistance;
-	fMaxs[0] = fSurvivorPos[0] + SpawnDistance;
-	fMins[1] = fSurvivorPos[1] - SpawnDistance;
-	fMaxs[1] = fSurvivorPos[1] + SpawnDistance;
-	fMaxs[2] = fSurvivorPos[2] + SpawnDistance;
-	// 规定射线方向
-	fDirection[0] = 90.0;
-	fDirection[1] = fDirection[2] = 0.0;
-	// 随机刷新位置
-	fSpawnPos[0] = GetRandomFloat(fMins[0], fMaxs[0]);
-	fSpawnPos[1] = GetRandomFloat(fMins[1], fMaxs[1]);
-	fSpawnPos[2] = GetRandomFloat(fSurvivorPos[2], fMaxs[2]);
-	// 找位条件，可视，是否在有效 NavMesh，是否卡住，否则先会判断是否在有效 Mesh 与是否卡住导致某些位置刷不出特感
-	int count2=0;
-	//生成的时候只能在有跑男情况下才特意生成到幸存者前方
-	while (PlayerVisibleToSDK(fSpawnPos, IsTeleport) || !IsOnValidMesh(fSpawnPos) || IsPlayerStuck(fSpawnPos) || (g_bPickRushMan && !Is_Pos_Ahead(fSpawnPos, g_iTargetSurvivor)))
-	{
-		count2++;
-		if(count2 > 20)
+	if(IsValidClient){
+		float fSurvivorPos[3] = {0.0}, fDirection[3] = {0.0}, fEndPos[3] = {0.0}, fMins[3] = {0.0}, fMaxs[3] = {0.0};	
+		// 根据指定生还者坐标，拓展刷新范围
+		GetClientEyePosition(g_iTargetSurvivor, fSurvivorPos);
+		//增加高度，增加刷房顶的几率
+		if(SpawnDistance < 500.0)
 		{
-			return false;
+			fMaxs[2] = fSurvivorPos[2] + 800.0;
 		}
+		else
+		{
+			fMaxs[2] = fSurvivorPos[2] + SpawnDistance + 300.0;
+		}
+		fMins[0] = fSurvivorPos[0] - SpawnDistance;
+		fMaxs[0] = fSurvivorPos[0] + SpawnDistance;
+		fMins[1] = fSurvivorPos[1] - SpawnDistance;
+		fMaxs[1] = fSurvivorPos[1] + SpawnDistance;
+		fMaxs[2] = fSurvivorPos[2] + SpawnDistance;
+		// 规定射线方向
+		fDirection[0] = 90.0;
+		fDirection[1] = fDirection[2] = 0.0;
+		// 随机刷新位置
 		fSpawnPos[0] = GetRandomFloat(fMins[0], fMaxs[0]);
 		fSpawnPos[1] = GetRandomFloat(fMins[1], fMaxs[1]);
 		fSpawnPos[2] = GetRandomFloat(fSurvivorPos[2], fMaxs[2]);
-		TR_TraceRay(fSpawnPos, fDirection, MASK_PLAYERSOLID, RayType_Infinite);
-		if(TR_DidHit())
+		// 找位条件，可视，是否在有效 NavMesh，是否卡住，否则先会判断是否在有效 Mesh 与是否卡住导致某些位置刷不出特感
+		int count2=0;
+		//生成的时候只能在有跑男情况下才特意生成到幸存者前方
+		while (PlayerVisibleToSDK(fSpawnPos, IsTeleport) || !IsOnValidMesh(fSpawnPos) || IsPlayerStuck(fSpawnPos) || (g_bPickRushMan && !Is_Pos_Ahead(fSpawnPos, g_iTargetSurvivor)))
 		{
-			TR_GetEndPosition(fEndPos);
-			fSpawnPos = fEndPos;
-			fSpawnPos[2] += NAV_MESH_HEIGHT;
+			count2++;
+			if(count2 > 20)
+			{
+				return false;
+			}
+			fSpawnPos[0] = GetRandomFloat(fMins[0], fMaxs[0]);
+			fSpawnPos[1] = GetRandomFloat(fMins[1], fMaxs[1]);
+			fSpawnPos[2] = GetRandomFloat(fSurvivorPos[2], fMaxs[2]);
+			TR_TraceRay(fSpawnPos, fDirection, MASK_PLAYERSOLID, RayType_Infinite);
+			if(TR_DidHit())
+			{
+				TR_GetEndPosition(fEndPos);
+				fSpawnPos = fEndPos;
+				fSpawnPos[2] += NAV_MESH_HEIGHT;
+			}
 		}
+		return true;
 	}
-	return true;
+	return false;
 }
 
-stock bool SpawnInfected(float fSpawnPos[3], float SpawnDistance, int iZombieClass)
+stock bool SpawnInfected(float fSpawnPos[3], float SpawnDistance, int iZombieClass, bool IsTeleport = false)
 {
 	int sum =0;
+	int SpawnCount = 0;
 	float fSurvivorPos[3];
 	//Debug_Print("生还者看不到");
 	// 生还数量为 4，循环 4 次，检测此位置到生还的距离是否小于 750 是则刷特，此处可以刷新 1 ~ g_iSiLimit 只特感，如果此处刷完，则上面的 SpawnSpecial 将不再刷特
@@ -568,18 +567,23 @@ stock bool SpawnInfected(float fSpawnPos[3], float SpawnDistance, int iZombieCla
 		//nav1 和 nav2 必须有网格相连的路，并且生成距离大于SpawnDistance，增加不能是通nav网格的要求
 		if (L4D2_NavAreaBuildPath(nav1, nav2, SpawnDistance * 1.73, TEAM_INFECTED, false) && GetVectorDistance(fSurvivorPos, fSpawnPos) >= g_fSpawnDistanceMin && nav1 != nav2)
 		{
-			if (iZombieClass > 0 && g_iSpawnMaxCount > 0 && !HasReachedLimit(iZombieClass) && CheckSIOption(iZombieClass))
+			if (iZombieClass > 0 && !HasReachedLimit(iZombieClass) && CheckSIOption(iZombieClass))
 			{
+				if(IsTeleport && g_iTeleportIndex <= 0){
+					return false;
+				}
+				if(g_iSpawnMaxCount <= 0){
+					return false;
+				}
 				int entityindex = L4D2_SpawnSpecial(iZombieClass, fSpawnPos, view_as<float>({0.0, 0.0, 0.0}));
 				if (IsValidEntity(entityindex) && IsValidEdict(entityindex))
 				{
-					return true;
+					SpawnCount++;
 				}
-			}								
-
+			}
 		}
 	}
-	return false;
+	return SpawnCount? true:false;
 }
 
 // 当前在场的某种特感种类数量达到 Cvar 限制，但因为刷新一个特感，出队此元素，之后再入队相同特感元素，则会刷不出来，需要处理重复情况，如果队列长度大于 1 且索引大于 0，说明队列存在
@@ -743,7 +747,7 @@ public Action SpawnNewInfected(Handle timer)
 		g_iSpawnMaxCount += 1;
 		if (g_iSiLimit == g_iSpawnMaxCount){
 			g_iWaveTime++;
-			Debug_Print("%s:开始第%d波刷特", g_iWaveTime);
+			Debug_Print("开始第%d波刷特", g_iWaveTime);
 		}
 			
 		// 当一定时间内刷不出特感，触发时钟使 g_iSpawnMaxCount 超过 g_iSiLimit 值时，最多允许刷出 g_iSiLimit + 2 只特感，防止连续刷 2-3 波的情况
@@ -1054,7 +1058,7 @@ bool IsPinningSomeone(int client)
 
 bool CanBeTeleport(int client)
 {
-	if (IsInfectedBot(client) && IsClientInGame(client)&& IsPlayerAlive(client) && GetEntProp(client, Prop_Send, "m_zombieClass") != ZC_TANK && IsPinningSomeone(client))
+	if (IsInfectedBot(client) && IsClientInGame(client)&& IsPlayerAlive(client) && GetEntProp(client, Prop_Send, "m_zombieClass") != ZC_TANK && !IsPinningSomeone(client))
 	{
 		return true;
 	}
@@ -1079,7 +1083,7 @@ public Action Timer_PositionSi(Handle timer)
 					int type = GetInfectedClass(client);
 					aTeleportQueue.Push(type);
 					g_iTeleportIndex += 1;
-					Debug_Print("<传送队列> %N处死，进入传送队列，当前 <传送队列> 队列长度：%d 队列索引：%d", client, aTeleportQueue.Length, g_iTeleportIndex);
+					Debug_Print("<传送队列> %N踢出，进入传送队列，当前 <传送队列> 队列长度：%d 队列索引：%d", client, aTeleportQueue.Length, g_iTeleportIndex);
 					ForcePlayerSuicide(client);
 					g_iTeleCount[client] = 0;
 				}
@@ -1091,7 +1095,7 @@ public Action Timer_PositionSi(Handle timer)
 		}
 		
 	}
-	//非正常情况，每1s找一次攻击目标，正常情况ongameframe会调用
+	//每1s找一次攻击目标，主要用于检测跑男，正常情况ongameframe会调用
 	g_iTargetSurvivor = GetTargetSurvivor();
 	return Plugin_Continue;
 }
@@ -1142,13 +1146,14 @@ int GetTargetSurvivor()
 		}
 	}
 	int target = L4D_GetHighestFlowSurvivor();
-	GetClientAbsOrigin(target, OriginTemp);
-	//遍历所有正常人，检测与进度最远的人的距离是否已经大于g_fTeleportDistance，如果是，开启针对跑男模式，否则选择随机未满目标的正常生还者
-	if (iSurvivorIndex > 0)
+	//遍历所有正常人，检测与进度最远的人的距离是否已经大于1000.0，如果是，开启针对跑男模式，否则选择随机未满目标的正常生还者
+	if (iSurvivorIndex > 0 && iAllSurvivorsNum > 1 && IsValidClient(target))
 	{
+		GetClientAbsOrigin(target, OriginTemp);
 		for(int i =0; i < iAllSurvivorsNum; i++){
-			if(IsPinned(target) || iAllSurvivorsIndex[i] != target && GetVectorDistance(iSurvivorsOrigin[i], OriginTemp) <= g_fTeleportDistance){
+			if(IsPinned(target) || (iAllSurvivorsIndex[i] != target && GetVectorDistance(iSurvivorsOrigin[i], OriginTemp) <= 1000.0)){
 				g_bPickRushMan = false;
+				//Debug_Print("正常模式刷特");
 				return iSurvivorsLimit[GetRandomInt(0, iSurvivorIndexLimit - 1)];
 			}
 		}
@@ -1156,6 +1161,68 @@ int GetTargetSurvivor()
 		//Debug_Print("针对跑男模式已开启，目标：%N", target);
 	}
 	return target;
+}
+
+// 判断是否有效玩家 id，有效返回 true，无效返回 false
+stock bool IsValidClient(int client)
+{
+	if (client > 0 && client <= MaxClients && IsClientConnected(client) && IsClientInGame(client))
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+// 判断生还者是否有效，有效返回 true，无效返回 false
+stock bool IsValidSurvivor(int client)
+{
+	if (IsValidClient(client) && GetClientTeam(client) == view_as<int>(TEAM_SURVIVOR))
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+// 判断玩家是否倒地，倒地返回 true，未倒地返回 false
+stock bool IsClientIncapped(int client)
+{
+	if (IsValidClient(client))
+	{
+		return view_as<bool>(GetEntProp(client, Prop_Send, "m_isIncapacitated"));
+	}
+	else
+	{
+		return false;
+	}
+}
+
+// 获取特感类型，成功返回特感类型，失败返回 0
+stock int GetInfectedClass(int client)
+{
+	if (IsValidInfected(client))
+	{
+		return GetEntProp(client, Prop_Send, "m_zombieClass");
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+stock bool IsValidInfected(int client)
+{
+	if (IsValidClient(client) && GetClientTeam(client) == view_as<int>(TEAM_INFECTED))
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 stock bool IsAiSmoker(int client)

@@ -29,27 +29,27 @@ new iCharger[MAXPLAYERS+1];
 new iJockey[MAXPLAYERS+1];
 new iTankRock[MAXPLAYERS+1];
 new iTankClaw[MAXPLAYERS+1];
-
+bool
+	g_bIsPrintInfo;
 
 public OnPluginStart()
 {
-    decl String:Game_Name[64];
+	decl String:Game_Name[64];
 	GetGameFolderName(Game_Name, sizeof(Game_Name));
 	if(!StrEqual(Game_Name, "left4dead2", false))
 	{
 		SetFailState("Mvp Statistic %d插件仅支持L4D2!", PLUGIN_VERSION);
 	}
 
-    HookEvents();
-    RegConsoleCmd("sm_kills", Command_Kills, "MVP Statistic");
-    RegConsoleCmd("sm_killsme", Command_KillsMe, "MyKills Statistic");
+	HookEvents();
+	RegConsoleCmd("sm_kills", Command_Kills, "MVP Statistic");
+	RegConsoleCmd("sm_killsme", Command_KillsMe, "MyKills Statistic");
 }
 
 HookEvents()
 {
     HookEvent("round_start", RoundStart_Event, EventHookMode_PostNoCopy);
-    HookEvent("scavenge_round_start", EventHook:ScavRoundStart);
-    HookEvent("mission_lost",				Event_RoundEnd);
+    HookEvent("round_end",				Event_RoundEnd);
     HookEvent("tongue_grab",			Event_SmokerGrabbed);
     HookEvent("lunge_pounce",			Event_HunterPounced);
     HookEvent("player_now_it",			Event_BoomerAttackEXP);
@@ -78,14 +78,14 @@ public Action:Command_KillsMe(Client, args)
 public KillsStatistic()
 {
 	decl String:line[256];
-    for (new i = 1; i <= MaxClients; i++)
-    {
-        if(IsClientInGame(i) && GetClientTeam(i) == TEAM_SURVIVORS)
+	for (int i = 1; i <= MaxClients; i++)
+	{
+	    if(IsClientInGame(i) && GetClientTeam(i) == TEAM_SURVIVORS)
 		{
 			Format(line, sizeof(line), "{green}[ {green}被拉 {red}%d {green}][ 被扑 {red}%d {green}][ 被吐 {red}%d {green}][ 被撞 {red}%d {green}][ 被骑 {red}%d {green}] {olive}%N ", iSmoker[i], iHunter[i], iBoomer[i], iCharger[i], iJockey[i], i);
 			CPrintToChatAll(line);
 		}
-    }
+	}
 }
 
 
@@ -105,9 +105,15 @@ public MyKillsStatistic(Client)
 	}
 }
 
-public Event_RoundEnd(Handle:event, String:event_name[], bool:dontBroadcast)
+public Action Event_RoundEnd(Handle:event, String:event_name[], bool:dontBroadcast)
 {
+	if(g_bIsPrintInfo){
+		return Plugin_Handled;
+	}else{
+		g_bIsPrintInfo = true;
+	}
 	KillsStatistic();
+	return Plugin_Continue;
 }
 
 public ScavRoundStart(Handle:event)
@@ -115,13 +121,14 @@ public ScavRoundStart(Handle:event)
     // clear mvp stats
     for (new i = 1; i <= MaxClients; i++)
     {
-        iSmoker[i] = 0;
-        iHunter[i] = 0;
-        iBoomer[i] = 0;
-        iCharger[i] = 0;
-        iJockey[i] = 0;
-        iTankRock[i] = 0;
-        iTankClaw[i] = 0;
+		iSmoker[i] = 0;
+		iHunter[i] = 0;
+		iBoomer[i] = 0;
+		iCharger[i] = 0;
+		iJockey[i] = 0;
+		iTankRock[i] = 0;
+		iTankClaw[i] = 0;
+		g_bIsPrintInfo = false;
     }
 }
 
@@ -232,21 +239,21 @@ public Action:Event_JockeyRide(Handle:event, String:event_name[], bool:dontBroad
 /* Tank攻击生还者 */
 public Action:Event_PlayerHurt(Handle:event, String:event_name[], bool:dontBroadcast)
 {
-    new victim = GetClientOfUserId(GetEventInt(event, "userid"));
-    if (IsValidAliveClient(victim) && GetClientTeam(victim) == TEAM_SURVIVORS)
+	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
+	if (IsValidAliveClient(victim) && GetClientTeam(victim) == TEAM_SURVIVORS)
 	{
-        decl String:WeaponUsed[256];
-        GetEventString(event, "weapon", WeaponUsed, sizeof(WeaponUsed));
+		decl String:WeaponUsed[256];
+		GetEventString(event, "weapon", WeaponUsed, sizeof(WeaponUsed));
 
-        if (StrEqual(WeaponUsed,"tank_claw"))
-        {
-            iTankClaw[victim]++;
-        }
-        else if (StrEqual(WeaponUsed,"tank_rock"))
-        {
-            iTankRock[victim]++;
-        }
+		if (StrEqual(WeaponUsed,"tank_claw"))
+		{
+		    iTankClaw[victim]++;
+		}
+		else if (StrEqual(WeaponUsed,"tank_rock"))
+		{
+		    iTankRock[victim]++;
+		}
 	}
 	return Plugin_Continue;
-}
+	}
 
