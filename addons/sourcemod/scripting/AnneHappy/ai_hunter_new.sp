@@ -39,8 +39,8 @@ public Plugin myinfo = {
 };
 
 public void OnPluginStart() {	
-	g_hFastPounceProximity = 		CreateConVar("ai_fast_pounce_proximity",			"2000.0",	"At what distance to start pouncing fast");
-	g_hPounceVerticalAngle = 		CreateConVar("ai_pounce_vertical_angle",			"8.0",		"Vertical angle to which AI hunter pounces will be restricted");
+	g_hFastPounceProximity = 		CreateConVar("ai_fast_pounce_proximity",			"1000.0",	"At what distance to start pouncing fast");
+	g_hPounceVerticalAngle = 		CreateConVar("ai_pounce_vertical_angle",			"7.0",		"Vertical angle to which AI hunter pounces will be restricted");
 	g_hPounceAngleMean = 			CreateConVar("ai_pounce_angle_mean",				"10.0",		"Mean angle produced by Gaussian RNG");
 	g_hPounceAngleStd = 			CreateConVar("ai_pounce_angle_std",					"20.0",		"One standard deviation from mean as produced by Gaussian RNG");
 	g_hStraightPounceProximity =	CreateConVar("ai_straight_pounce_proximity",		"200.0",	"Distance to nearest survivor at which hunter will consider pouncing straight");
@@ -227,7 +227,7 @@ bool HitWall(int client, float vStart[3]) {
 	if (TR_DidHit(hndl)) {
 		static float vPlane[3];
 		TR_GetPlaneNormal(hndl, vPlane);
-		if (RadToDeg(ArcCosine(GetVectorDotProduct(vAng, vPlane))) > 150.0) {
+		if (RadToDeg(ArcCosine(GetVectorDotProduct(vAng, vPlane))) > 165.0) {
 			delete hndl;
 			return true;
 		}
@@ -238,15 +238,13 @@ bool HitWall(int client, float vStart[3]) {
 }
 
 bool TraceEntityFilter(int entity, int contentsMask) {
-	if (entity <= MaxClients)
-		return false;
+	if (!entity || entity > MaxClients) {
+		static char cls[5];
+		GetEdictClassname(entity, cls, sizeof cls);
+		return cls[3] != 'e' && cls[3] != 'c';
+	}
 
-	static char cls[10];
-	GetEntityClassname(entity, cls, sizeof cls);
-	if ((cls[0] == 'i' && strcmp(cls[1], "nfected") == 0) || (cls[0] == 'w' && strcmp(cls[1], "itch") == 0))
-		return false;
-
-	return true;
+	return false;
 }
 
 bool IsBeingWatched(int client, float offsetThreshold) {
