@@ -39,7 +39,7 @@ public Plugin myinfo = {
 };
 
 public void OnPluginStart() {	
-	g_hFastPounceProximity = 		CreateConVar("ai_fast_pounce_proximity",			"1000.0",	"At what distance to start pouncing fast");
+	g_hFastPounceProximity = 		CreateConVar("ai_fast_pounce_proximity",			"2000.0",	"At what distance to start pouncing fast");
 	g_hPounceVerticalAngle = 		CreateConVar("ai_pounce_vertical_angle",			"8.0",		"Vertical angle to which AI hunter pounces will be restricted");
 	g_hPounceAngleMean = 			CreateConVar("ai_pounce_angle_mean",				"10.0",		"Mean angle produced by Gaussian RNG");
 	g_hPounceAngleStd = 			CreateConVar("ai_pounce_angle_std",					"20.0",		"One standard deviation from mean as produced by Gaussian RNG");
@@ -73,12 +73,14 @@ public void OnAllPluginsLoaded() {
 			g_bIgnoreCrouch = true;
 	}
 
-	g_hHunterPounceRe.FloatValue = g_bIgnoreCrouch ? 0.0 : 1000.0;
+	g_hHunterPounceRe.FloatValue = g_bIgnoreCrouch ? 0.0 : 2000.0;
 }
 
 public void OnPluginEnd() {
-	FindConVar("hunter_leap_away_give_up_range").RestoreDefault();
+	FindConVar("z_pounce_silence_range").RestoreDefault();
+	FindConVar("hunter_pounce_ready_range").RestoreDefault();
 	FindConVar("hunter_pounce_max_loft_angle").RestoreDefault();
+	FindConVar("hunter_leap_away_give_up_range").RestoreDefault();
 }
 
 public void OnConfigsExecuted() {
@@ -92,6 +94,7 @@ void CvarChanged(ConVar convar, const char[] oldValue, const char[] newValue) {
 
 void TweakSettings() {
 	OnAllPluginsLoaded();
+	FindConVar("z_pounce_silence_range").FloatValue =			999999.0;
 	FindConVar("hunter_pounce_max_loft_angle").FloatValue =		0.0;
 	FindConVar("hunter_leap_away_give_up_range").FloatValue =	0.0;
 }
@@ -213,23 +216,23 @@ bool HitWall(int client, float vStart[3]) {
 	ScaleVector(vEnd, g_fWallDetectionDistance);
 	AddVectors(vStart, vEnd, vEnd);
 
-	static Handle hTrace;
-	hTrace = TR_TraceHullFilterEx(vStart, vEnd, view_as<float>({-16.0, -16.0, 0.0}), view_as<float>({16.0, 16.0, 33.0}), MASK_PLAYERSOLID, TraceEntityFilter);
-	if (TR_DidHit(hTrace)) {
+	static Handle hndl;
+	hndl = TR_TraceHullFilterEx(vStart, vEnd, view_as<float>({-16.0, -16.0, 0.0}), view_as<float>({16.0, 16.0, 33.0}), MASK_PLAYERSOLID_BRUSHONLY, TraceEntityFilter);
+	if (TR_DidHit(hndl)) {
 		static float vPlane[3];
-		TR_GetPlaneNormal(hTrace, vPlane);
+		TR_GetPlaneNormal(hndl, vPlane);
 		if (RadToDeg(ArcCosine(GetVectorDotProduct(vAng, vPlane))) > 150.0) {
-			delete hTrace;
+			delete hndl;
 			return true;
 		}
 	}
 
-	delete hTrace;
+	delete hndl;
 	return false;
 }
 
 bool TraceEntityFilter(int entity, int contentsMask) {
-	if (/*entity > 0 && */entity <= MaxClients)
+	if (entity <= MaxClients)
 		return false;
 
 	static char cls[10];
