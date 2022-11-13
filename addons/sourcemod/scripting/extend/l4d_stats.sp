@@ -801,6 +801,7 @@ public OnPluginStart()
 
 	// Team Gain Events
 	HookEvent("finale_vehicle_leaving", event_CampaignWin);
+	HookEvent("map_transition", event_MapTransitionPre, EventHookMode_Pre);
 	HookEvent("map_transition", event_MapTransition);
 	//HookEvent("create_panic_event", event_PanicEvent);
 	HookEvent("player_now_it", event_PlayerBlind);
@@ -4411,6 +4412,13 @@ public Action:event_CampaignWin(Handle:event, const String:name[], bool:dontBroa
 
 // Safe House reached code. Points are given to all players.
 // Also, Witch Not Disturbed code, points also given to all players.
+
+public Action:event_MapTransitionPre(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	if (StatsDisabled())
+		return;
+	g_broundend = true;
+}
 
 public Action:event_MapTransition(Handle:event, const String:name[], bool:dontBroadcast)
 {

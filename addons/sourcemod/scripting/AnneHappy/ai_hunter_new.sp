@@ -72,14 +72,20 @@ public void OnAllPluginsLoaded() {
 		if (cv && cv.IntValue == 2)
 			g_bIgnoreCrouch = true;
 	}
-
-	g_hHunterPounceRe.FloatValue = g_bIgnoreCrouch ? 0.0 : 2000.0;
+	if(g_bIgnoreCrouch){
+		g_hHunterPounceRe.FloatValue = 0.0;
+		FindConVar("hunter_committed_attack_range").FloatValue =	0.0;
+	}else{
+		g_hHunterPounceRe.FloatValue = 3000.0;
+		FindConVar("hunter_committed_attack_range").FloatValue =	3000.0;
+	}
 }
 
 public void OnPluginEnd() {
 	FindConVar("z_pounce_silence_range").RestoreDefault();
 	FindConVar("hunter_pounce_ready_range").RestoreDefault();
 	FindConVar("hunter_pounce_max_loft_angle").RestoreDefault();
+	FindConVar("hunter_committed_attack_range").RestoreDefault();
 	FindConVar("hunter_leap_away_give_up_range").RestoreDefault();
 }
 

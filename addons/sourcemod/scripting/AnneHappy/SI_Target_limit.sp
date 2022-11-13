@@ -24,7 +24,8 @@ char sLogFile[PLATFORM_MAX_PATH] = "addons/sourcemod/logs/SITargetLimit.txt";
 #undef REQUIRE_PLUGIN
 #include <l4d_target_override>
 
-#define PLUGIN_VERSION "1.3"
+
+#define PLUGIN_VERSION "1.4"
 ConVar	
 	g_hPluginEnable,
 	g_hSI_enable_option,
@@ -34,7 +35,8 @@ ConVar
 char
 	g_sLogPath[PLATFORM_MAX_PATH];
 bool 
-	g_bPluginEnable = true;
+	g_bPluginEnable = true,
+	g_bDetectRushMan = false;
 int 
 	g_iSI_enable_option = 0,
 	g_iLimit_auto = 0,
@@ -56,7 +58,11 @@ enum struct PlayerStruct{
 	}
 	void SetTargetLimit(int number){
 		if(g_iLimit_auto){
-			this.targetLimit = number;	
+			if(g_bDetectRushMan){
+				this.targetLimit = g_iSILimit;
+			}else{
+				this.targetLimit = number;
+			}	
 			this.target_override_set(this.targetLimit);		
 		}
 		else
@@ -92,9 +98,33 @@ public Plugin myinfo =
 /*
 Changelog
 2022.9.20
-1.2 适配l4d_target_override
+1.4 适配infected_control的跑男针对
+1.3 适配l4d_target_override
 1.0 初始版本发布
 */
+
+//针对来自infected_control的跑男检测特殊处理
+forward void OnDetectRushman(int DetectRushMan);
+public void OnDetectRushman(int DetectRushman){
+	Debug_Print("跑男状态改变，当前状态为：%d", DetectRushman);
+	if(DetectRushman){
+		g_bDetectRushMan = true;
+		for(int i = 0; i < MAXPLAYERS +1; i++)
+		{
+			player[i].SetTargetLimit(g_iSILimit);
+		}	
+	}else
+	{
+		g_bDetectRushMan = false;
+		int temp = GetMobileSurvivorNum();
+		if(temp < 1) temp = 1;
+		int normalSur = (g_iSILimit / temp) + 1;
+		for(int i = 0; i < MAXPLAYERS +1; i++){
+			player[i].SetTargetLimit(normalSur);
+		}
+	}
+}
+
 public void  OnPluginStart()
 {
 	g_hPluginEnable = CreateConVar("SI_target_enable", "1", "是否开启插件", 0, true, 0.0, true, 1.0);//Plugin Enable
@@ -315,6 +345,7 @@ public void StructInit(){
 		player[i].PlayerStruct();
 		infected[i] = false;
 	}
+	g_bDetectRushMan = false;
 }
 
 public void OnMapEnd()
@@ -462,14 +493,16 @@ public Action L4D_OnTargetOverride(int specialInfected, int &curTarget, int orde
 }
 */
 //不再对目标进行处理，只进行track
+#if (DEBUG)
 public Action L4D_OnTargetOverride(int specialInfected, int &curTarget, int order){
 	if(IsValidClient(specialInfected) && GetClientTeam(specialInfected) == 3 && g_bPluginEnable && infected[specialInfected]){
 		if(IsValidClient(curTarget) && GetClientTeam(curTarget) == 2){			
-			Debug_Print("%N 选择目标为%N (%d/%d)", specialInfected, curTarget, L4D_TargetOverride_GetValue(curTarget, view_as<VALUE_OPTION_INDEX>(VALUE_INDEX_TOTAL)), player[curTarget].targetLimit);
+			//Debug_Print("%N 选择目标为%N (%d/%d)", specialInfected, curTarget, L4D_TargetOverride_GetValue(curTarget, view_as<VALUE_OPTION_INDEX>(VALUE_INDEX_TOTAL)), player[curTarget].targetLimit);
 		}
 	}
 	return Plugin_Continue;
 }
+#endif
 
 //随机获得一个未达到目标限制的正常生还者
 stock int GetRandomMobileSurvivor(int excluse = -1, bool CheckLimit = false)
@@ -538,11 +571,14 @@ stock void Debug_Print(char[] format, any ...)
 {
 	#if (DEBUG)
 	{
+		char sTime[32];
+		FormatTime(sTime, sizeof(sTime), "%I-%M-%S", GetTime()); 
 		char sBuffer[512];
 		VFormat(sBuffer, sizeof(sBuffer), format, 2);
-		Format(sBuffer, sizeof(sBuffer), "[%s] %s", "DEBUG", sBuffer);
+		Format(sBuffer, sizeof(sBuffer), "[%s] %s: %s", "DEBUG", sTime, sBuffer);
 	//	PrintToChatAll(sBuffer);
 		PrintToConsoleAll(sBuffer);
+		PrintToServer(sBuffer);
 		LogToFile(sLogFile, sBuffer);
 	}
 	#endif
