@@ -423,7 +423,8 @@ public void OnGameFrame()
 			{
 				g_iTargetSurvivor = GetTargetSurvivor();
 				float fSpawnPos[3] = {0.0};
-				if(GetSpawnPos(fSpawnPos, g_iTargetSurvivor, g_fTeleportDistance, true))	{
+				if(GetSpawnPos(fSpawnPos, g_iTargetSurvivor, g_fTeleportDistance, true))	
+				{
 					int iZombieClass = aTeleportQueue.Get(0);
 					if(!(iZombieClass >= 1 && iZombieClass <= 6))
 					{
@@ -453,7 +454,7 @@ public void OnGameFrame()
 				}
 			}
 			//传送队列优先处理，防止普通刷特刷出来把特感数量刷满了
-			if(g_iSpawnMaxCount > 0 && g_iTeleportIndex <= 0)
+			if(g_iSpawnMaxCount > 0 && g_iTeleportIndex <= 0 && g_iQueueIndex > 0)
 			{
 				g_iTargetSurvivor = GetTargetSurvivor();
 				if(g_fSpawnDistance < g_fSpawnDistanceMax)
@@ -480,9 +481,8 @@ public void OnGameFrame()
 						{
 							ReachedLimit(iZombieClass);
 						}
-						if (g_iSpawnMaxCount <= 0)
+						if (g_iQueueIndex <= 0)
 						{
-							g_iSpawnMaxCount = 0;
 							aSpawnQueue.Clear();
 							g_iQueueIndex = 0;
 						}
@@ -586,7 +586,7 @@ stock bool SpawnInfected(float fSpawnPos[3], float SpawnDistance, int iZombieCla
 				if(IsTeleport && g_iTeleportIndex <= 0){
 					return false;
 				}
-				if(g_iSpawnMaxCount <= 0){
+				if(!IsTeleport && g_iSpawnMaxCount <= 0){
 					return false;
 				}
 				int entityindex = L4D2_SpawnSpecial(iZombieClass, fSpawnPos, view_as<float>({0.0, 0.0, 0.0}));
@@ -1120,6 +1120,7 @@ public Action Timer_PositionSi(Handle timer)
 							{
 								g_iTotalSINum = 0;
 							}
+							KickClient(client, "传送刷特，踢出");
 						}
 						g_iTeleCount[client] = 0;
 					}
@@ -1188,7 +1189,7 @@ int GetTargetSurvivor()
 	{
 		GetClientAbsOrigin(target, OriginTemp);
 		for(int i =0; i < iAllSurvivorsNum; i++){
-			if(IsPinned(target) || (iAllSurvivorsIndex[i] != target && GetVectorDistance(iSurvivorsOrigin[i], OriginTemp) <= 1000.0)){
+			if(IsPinned(target) || IsClientIncapped(target) || (iAllSurvivorsIndex[i] != target && GetVectorDistance(iSurvivorsOrigin[i], OriginTemp) <= 1000.0)){
 				g_bPickRushMan = false;
 				if(TempRushMan != g_bPickRushMan){
 					StartForward(g_bPickRushMan);
