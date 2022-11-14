@@ -82,6 +82,7 @@ public void OnAllPluginsLoaded() {
 }
 
 public void OnPluginEnd() {
+	FindConVar("z_pounce_crouch_delay").RestoreDefault();
 	FindConVar("z_pounce_silence_range").RestoreDefault();
 	FindConVar("hunter_pounce_ready_range").RestoreDefault();
 	FindConVar("hunter_pounce_max_loft_angle").RestoreDefault();
@@ -100,6 +101,7 @@ void CvarChanged(ConVar convar, const char[] oldValue, const char[] newValue) {
 
 void TweakSettings() {
 	OnAllPluginsLoaded();
+	FindConVar("z_pounce_crouch_delay").FloatValue =			0.0;
 	FindConVar("z_pounce_silence_range").FloatValue =			999999.0;
 	FindConVar("hunter_pounce_max_loft_angle").FloatValue =		0.0;
 	FindConVar("hunter_leap_away_give_up_range").FloatValue =	0.0;

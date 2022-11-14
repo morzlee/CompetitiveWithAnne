@@ -284,8 +284,6 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 						GetVectorAngles(new_velvec, velangles);
 						NormalizeVector(new_velvec, new_velvec);
 						// 按照原来速度向量长度 + 缩放长度缩放修正后的速度向量，觉得太阴间了可以修改
-						// ScaleVector(new_velvec, speed_length + curspeed);
-						NormalizeVector(new_velvec, new_velvec);
 						if(curspeed > SPEED_FIXED_LENGTH)
 							ScaleVector(new_velvec, SPEED_FIXED_LENGTH * 0.9);
 						else
