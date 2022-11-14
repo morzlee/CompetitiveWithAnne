@@ -1417,16 +1417,16 @@ void GetHUD1_Text(char[] output, int size)
 	{
 		if(g_fWitchPercent)
 		{
-			FormatEx(output, size, "当前: [ %d ]    坦克: [ %d ]    女巫: [ %d ]", boss_proximity, g_fTankPercent, g_fWitchPercent);
+			FormatEx(output, size, "进度: [ %d%% ]    坦克: [ %d%% ]    女巫: [ %d%% ]", boss_proximity, g_fTankPercent, g_fWitchPercent);
 		}
 		else
 		{
-			FormatEx(output, size, "当前: [ %d ]    坦克: [ %d ]    女巫: [ 固定 ]", boss_proximity, g_fTankPercent);
+			FormatEx(output, size, "进度: [ %d%% ]    坦克: [ %d%% ]    女巫: [ 固定 ]", boss_proximity, g_fTankPercent);
 		}
 	} 
 	else if(g_fWitchPercent)
 	{
-		FormatEx(output, size, "当前: [ %d ]    坦克: [ 固定 ]    女巫: [ %d ]", boss_proximity, g_fWitchPercent);
+		FormatEx(output, size, "进度: [ %d%% ]    坦克: [ 固定 ]    女巫: [ %d%% ]", boss_proximity, g_fWitchPercent);
 	}
 	else
 	{

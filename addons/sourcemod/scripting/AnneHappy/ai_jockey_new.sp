@@ -23,14 +23,14 @@ public Plugin myinfo =
 }
 
 // ConVars
-ConVar g_hBhopSpeed, g_hStartHopDistance, g_hJockeyStumbleRadius, g_hJockeyLeapRange, g_hJockeyLeapAgain, g_hJockeyAirAngles;
+ConVar g_hBhopSpeed, g_hStartHopDistance, g_hJockeyStumbleRadius, g_hJockeyLeapRange, g_hJockeyLeapAgain, g_hJockeyAirAngles, g_hJockeyLeapTime;
 // Ints
 int g_iState[MAXPLAYERS + 1][8];
 // Float
-float g_fStartHopDistance, g_fJockeyBhopSpeed, g_fJockeyStumbleRadius, g_fJockeyLeapRange, g_fJockeyLeapAgain, g_fJockeyAirAngles;
+float g_fStartHopDistance, g_fJockeyBhopSpeed, g_fJockeyStumbleRadius, g_fJockeyLeapRange, g_fJockeyLeapAgain, g_fJockeyAirAngles, g_fJockeyLeapTime;
 // Bools
 bool g_bHasBeenShoved[MAXPLAYERS + 1], g_bCanLeap[MAXPLAYERS + 1];
-Handle FrozeTimerHandle = null;
+
 
 #define TEAM_SURVIVOR 2
 #define TEAM_INFECTED 3
@@ -48,11 +48,11 @@ public void OnPluginStart()
 	g_hJockeyAirAngles = CreateConVar("ai_JockeyAirAngles", "60.0", "Jockey的速度方向与到目标的向量方向的距离大于这个角度，改变方向", FCVAR_NOTIFY, true, 0.0, true, 180.0);
 	g_hJockeyLeapRange =		FindConVar("z_jockey_leap_range");
 	g_hJockeyLeapAgain =		FindConVar("z_jockey_leap_again_timer");
+	g_hJockeyLeapTime =		FindConVar("z_jockey_leap_time");
 	// HookEvent
 	HookEvent("round_end",		Event_RoundEnd,		EventHookMode_PostNoCopy);
 	HookEvent("player_spawn", evt_PlayerSpawn, EventHookMode_Pre);
 	HookEvent("player_shoved", evt_PlayerShoved, EventHookMode_Pre);
-	HookEvent("player_death", evt_PlayerDeath, EventHookMode_Pre);
 	HookEvent("jockey_ride", evt_JockeyRide, EventHookMode_Pre);
 	// AddChangeHook
 	g_hBhopSpeed.AddChangeHook(ConVarChanged_Cvars);
@@ -65,7 +65,9 @@ public void OnPluginStart()
 
 void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast) {
 	for (int i = 1; i <= MaxClients; i++)
+	{
 		g_bCanLeap[i] = false;
+	}	
 }
 
 void ConVarChanged_Cvars(ConVar convar, const char[] oldValue, const char[] newValue)
@@ -81,6 +83,7 @@ void GetCvars()
 	g_fJockeyLeapRange = g_hJockeyLeapRange.FloatValue;
 	g_fJockeyLeapAgain = g_hJockeyLeapAgain.FloatValue;
 	g_fJockeyAirAngles = g_hJockeyAirAngles.FloatValue;
+	g_fJockeyLeapTime = g_hJockeyLeapTime.FloatValue;
 }
 
 public Action OnPlayerRunCmd(int jockey, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon)
@@ -91,15 +94,13 @@ public Action OnPlayerRunCmd(int jockey, int &buttons, int &impulse, float vel[3
 			return Plugin_Continue;
 		if (L4D_IsPlayerStaggering(jockey))
 			return Plugin_Continue;
-		//冻结骗推
-		if(GetEntityMoveType(jockey) & MOVETYPE_NONE)
-			return Plugin_Continue;
+		int iFlags = GetEntityFlags(jockey);
 		float fSpeed[3] = {0.0}, fCurrentSpeed, fJockeyPos[3] = {0.0};
 		GetEntPropVector(jockey, Prop_Data, "m_vecVelocity", fSpeed);
 		fCurrentSpeed = SquareRoot(Pow(fSpeed[0], 2.0) + Pow(fSpeed[1], 2.0));
 		GetClientAbsOrigin(jockey, fJockeyPos);
 		// 获取jockey状态
-		int iFlags = GetEntityFlags(jockey), iTarget = NearestSurvivor(jockey);
+		int iTarget = NearestSurvivor(jockey);
 		bool bHasSight = view_as<bool>(GetEntProp(jockey, Prop_Send, "m_hasVisibleThreats"));
 		if (IsSurvivor(iTarget) && IsPlayerAlive(iTarget) && bHasSight && !g_bHasBeenShoved[jockey])
 		{
@@ -130,15 +131,8 @@ public Action OnPlayerRunCmd(int jockey, int &buttons, int &impulse, float vel[3
 							if (bIsWatchingJockey)
 							{
 								vAng = angles;
-								vAng[0] = Math_GetRandomFloat(-30.0, -10.0);
+								vAng[0] = Math_GetRandomFloat(-35.0, -10.0);
 								TeleportEntity(jockey, NULL_VECTOR, vAng, NULL_VECTOR);
-							}
-							SetClientFrozen(jockey, true);
-							if(FrozeTimerHandle == null)
-							{
-								float freezetime = Math_GetRandomFloat(0.4, 1.0);
-								FrozeTimerHandle = CreateTimer(freezetime, UnfreezeJockey, jockey, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
-								//PrintToConsoleAll("攻击跳跃, 冻结时间： %f", freezetime);
 							}
 							buttons |= IN_ATTACK;
 							SetState(jockey, 0, IN_ATTACK);
@@ -207,7 +201,7 @@ public Action OnPlayerRunCmd(int jockey, int &buttons, int &impulse, float vel[3
 							ScaleVector(new_velvec, 180.0);
 						else
 							ScaleVector(new_velvec, fCurrentSpeed * 0.9);
-						PrintToConsoleAll("方向夹角为： %f,强制转向后的速度: %f", GetVectorLength(new_velvec));
+						//PrintToConsoleAll("方向夹角为： %f,强制转向后的速度: %f", GetVectorLength(new_velvec));
 						TeleportEntity(jockey, NULL_VECTOR, fAnglesPost, new_velvec);
 					}
 				}
@@ -222,15 +216,7 @@ public Action OnPlayerRunCmd(int jockey, int &buttons, int &impulse, float vel[3
 	return Plugin_Continue;
 }
 
-public Action evt_PlayerDeath(Event event, const char[] name, bool dontBroadcast)
-{
-	int iDeathPlayer = GetClientOfUserId(event.GetInt("userid"));
-	if (IsAiJockey(iDeathPlayer))
-	{
-		SetClientFrozen(iDeathPlayer, false);
-	}
-	return Plugin_Continue;
-}
+
 
 public Action evt_PlayerShoved(Event event, const char[] name, bool dontBroadcast)
 {
@@ -238,8 +224,7 @@ public Action evt_PlayerShoved(Event event, const char[] name, bool dontBroadcas
 	if (IsAiJockey(iShovedPlayer))
 	{
 		g_bHasBeenShoved[iShovedPlayer] = true;
-		g_bCanLeap[iShovedPlayer] = false;
-		CreateTimer(g_fJockeyLeapAgain, Timer_LeapCoolDown, iShovedPlayer, TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(g_fJockeyLeapTime, Timer_LeapTimeCoolDown, iShovedPlayer, TIMER_FLAG_NO_MAPCHANGE);
 	}
 	return Plugin_Continue;
 }
@@ -251,7 +236,6 @@ public Action evt_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 	int iSpawnPlayer = GetClientOfUserId(event.GetInt("userid"));
 	if (IsAiJockey(iSpawnPlayer))
 	{
-		SetClientFrozen(iSpawnPlayer, false);
 		g_bHasBeenShoved[iSpawnPlayer] = false;
 		g_bCanLeap[iSpawnPlayer] = true;
 		SetState(iSpawnPlayer, 0, IN_JUMP);
@@ -261,16 +245,14 @@ public Action evt_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 
 public Action Timer_LeapCoolDown(Handle timer, int jockey)
 {
-	g_bHasBeenShoved[jockey] = false;
 	g_bCanLeap[jockey] = true;
 	return Plugin_Continue;
 }
 
-public Action UnfreezeJockey(Handle timer, int jockey)
+public Action Timer_LeapTimeCoolDown(Handle timer, int jockey)
 {
-	SetClientFrozen(jockey, false);
-	FrozeTimerHandle = null;
-	return Plugin_Handled;
+	g_bHasBeenShoved[jockey] = false;
+	return Plugin_Continue;
 }
 
 public void evt_JockeyRide(Event event, const char[] name, bool dontBroadcast)
@@ -285,6 +267,8 @@ public void evt_JockeyRide(Event event, const char[] name, bool dontBroadcast)
 	int victim = GetClientOfUserId(event.GetInt("victim"));
 	if (!victim || !IsClientInGame(victim))
 		return;
+	g_bCanLeap[attacker] = false;
+	CreateTimer(g_fJockeyLeapAgain, Timer_LeapCoolDown, attacker, TIMER_FLAG_NO_MAPCHANGE);
 	StumbleByStanders(victim, attacker);
 }
 
@@ -490,9 +474,4 @@ void ClientPush(int client, float fForwardVec[3])
 float Math_GetRandomFloat(float min, float max)
 {
 	return (GetURandomFloat() * (max  - min)) + min;
-}
-
-void SetClientFrozen(int client, bool freeze)
-{
-	SetEntityMoveType(client, freeze ? MOVETYPE_NONE : (GetClientTeam(client) == 2 ? MOVETYPE_NOCLIP : MOVETYPE_WALK));
 }

@@ -548,7 +548,6 @@ stock bool GetSpawnPos(float fSpawnPos[3], int g_iTargetSurvivor, float SpawnDis
 stock bool SpawnInfected(float fSpawnPos[3], float SpawnDistance, int iZombieClass, bool IsTeleport = false)
 {
 	int sum =0;
-	int SpawnCount = 0;
 	float fSurvivorPos[3];
 	//Debug_Print("生还者看不到");
 	// 生还数量为 4，循环 4 次，检测此位置到生还的距离是否小于 750 是则刷特，此处可以刷新 1 ~ g_iSiLimit 只特感，如果此处刷完，则上面的 SpawnSpecial 将不再刷特
@@ -592,12 +591,12 @@ stock bool SpawnInfected(float fSpawnPos[3], float SpawnDistance, int iZombieCla
 				int entityindex = L4D2_SpawnSpecial(iZombieClass, fSpawnPos, view_as<float>({0.0, 0.0, 0.0}));
 				if (IsValidEntity(entityindex) && IsValidEdict(entityindex))
 				{
-					SpawnCount++;
+					return true;
 				}
 			}
 		}
 	}
-	return SpawnCount? true:false;
+	return false;
 }
 
 // 当前在场的某种特感种类数量达到 Cvar 限制，但因为刷新一个特感，出队此元素，之后再入队相同特感元素，则会刷不出来，需要处理重复情况，如果队列长度大于 1 且索引大于 0，说明队列存在
