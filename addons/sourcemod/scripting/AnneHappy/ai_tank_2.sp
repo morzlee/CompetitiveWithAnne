@@ -20,7 +20,8 @@
 #define LAG_DETECT_OFFSET 30.0								// 坦克位置检测偏移角度
 #define TREE_DETECT_TIME 1.5								// 绕树检测间隔
 #define VISION_UNLOCK_TIME 2.0								// 视角解锁间隔
-#define SPEED_FIXED_LENGTH 350.0							// 速度修正最大速度长度
+#define SPEED_MAX 350.0										// 速度修正最大速度长度
+#define SPEED_MIN 200.0										// 速度修正最大速度长度
 #define RAY_ANGLE view_as<float>({90.0, 0.0, 0.0})
 #define FL_JUMPING 65922
 #define DEBUG_ALL 0
@@ -284,10 +285,10 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 						GetVectorAngles(new_velvec, velangles);
 						NormalizeVector(new_velvec, new_velvec);
 						// 按照原来速度向量长度 + 缩放长度缩放修正后的速度向量，觉得太阴间了可以修改
-						if(curspeed > SPEED_FIXED_LENGTH)
-							ScaleVector(new_velvec, SPEED_FIXED_LENGTH * 0.9);
+						if(curspeed > SPEED_MAX)
+							ScaleVector(new_velvec, SPEED_MAX);
 						else
-							ScaleVector(new_velvec, curspeed * 0.9);
+							ScaleVector(new_velvec, curspeed);
 						TeleportEntity(client, NULL_VECTOR, velangles, new_velvec);
 					}
 				}

@@ -117,6 +117,7 @@ public Action OnPlayerRunCmd(int jockey, int &buttons, int &impulse, float vel[3
 				GetVectorAngles(look_at, look_at);
 				TeleportEntity(jockey, NULL_VECTOR, look_at, NULL_VECTOR);
 				fBuffer = UpdatePosition(jockey, iTarget, g_fJockeyBhopSpeed);
+				//PrintToConsoleAll("flag：%d", iFlags);
 				if (iFlags & FL_ONGROUND)
 				{
 					static float vAng[3];
@@ -167,19 +168,13 @@ public Action OnPlayerRunCmd(int jockey, int &buttons, int &impulse, float vel[3
 						buttons |= IN_DUCK;
 						ClientPush(jockey, fBuffer);
 					}
-				}
-				// 不在地上，禁止按下跳跃键和攻击键
+				}			
+				// 空中转向
 				else
 				{
-					buttons &= ~IN_JUMP;
-					buttons &= ~IN_ATTACK;
-				}
-				// 空中转向
-				if (iFlags == FL_JUMPING)
-				{
-					float fAngles[3], fAnglesPost[3], new_velvec[3] = {0.0}, self_target_vec[3] = {0.0};
+					//PrintToConsoleAll("检测猴子在空中");
+					float fAngles[3], new_velvec[3] = {0.0}, self_target_vec[3] = {0.0};
 					GetVectorAngles(fSpeed, fAngles);
-					fAnglesPost = fAngles;
 					fAngles[0] = fAngles[2] = 0.0;
 					GetAngleVectors(fAngles, new_velvec, NULL_VECTOR, NULL_VECTOR);
 					NormalizeVector(new_velvec, new_velvec);
@@ -187,23 +182,27 @@ public Action OnPlayerRunCmd(int jockey, int &buttons, int &impulse, float vel[3
 					fJockeyPos[2] = fTargetPos[2] = 0.0;
 					MakeVectorFromPoints(fJockeyPos, fTargetPos, self_target_vec);
 					NormalizeVector(self_target_vec, self_target_vec);
+					float fAngleDifference = RadToDeg(ArcCosine(GetVectorDotProduct(new_velvec, self_target_vec)));
+					//PrintToConsoleAll("速度夹角：%f", fAngleDifference);
 					// 计算距离
-					if (RadToDeg(ArcCosine(GetVectorDotProduct(new_velvec, self_target_vec))) > g_fJockeyAirAngles)
+					if (fAngleDifference > g_fJockeyAirAngles && fAngleDifference < 145.0)
 					{
 						//重新设置方向
 						MakeVectorFromPoints(fJockeyPos, fTargetPos, new_velvec);
+						GetVectorAngles(new_velvec, fAngles);
 						NormalizeVector(new_velvec, new_velvec);
 						// 按照原来速度向量长度 + 缩放长度缩放修正后的速度向量，觉得太阴间了可以修改
 						// ScaleVector(new_velvec, speed_length + curspeed);
 						if(fCurrentSpeed > SPEED_FIXED_LENGTH)
-							ScaleVector(new_velvec, SPEED_FIXED_LENGTH * 0.9);
-						else if(fCurrentSpeed < 200.0)
-							ScaleVector(new_velvec, 180.0);
+							ScaleVector(new_velvec, SPEED_FIXED_LENGTH);
 						else
-							ScaleVector(new_velvec, fCurrentSpeed * 0.9);
-						//PrintToConsoleAll("方向夹角为： %f,强制转向后的速度: %f", GetVectorLength(new_velvec));
-						TeleportEntity(jockey, NULL_VECTOR, fAnglesPost, new_velvec);
+							ScaleVector(new_velvec, fCurrentSpeed);
+						//PrintToConsoleAll("方向夹角为： %f,强制转向后的速度: %f", fAngleDifference, GetVectorLength(new_velvec));
+						TeleportEntity(jockey, NULL_VECTOR, fAngles, new_velvec);
 					}
+					// 不在地上，禁止按下跳跃键和攻击键
+					buttons &= ~IN_JUMP;
+					buttons &= ~IN_ATTACK;
 				}
 			}
 		}

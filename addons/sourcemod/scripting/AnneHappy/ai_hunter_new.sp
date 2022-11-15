@@ -13,6 +13,8 @@ ConVar
 	g_hPounceAngleStd,
 	g_hStraightPounceProximity,
 	g_hAimOffsetSensitivityHunter,
+	g_hHunter_patch_convert_leap,
+	g_hHunter_patch_crouch_pounce,
 	g_hWallDetectionDistance;
 
 float
@@ -48,7 +50,12 @@ public void OnPluginStart() {
 	g_hWallDetectionDistance = 		CreateConVar("ai_wall_detection_distance",			"-1.0",		"How far in front of himself infected bot will check for a wall. Use '-1' to disable feature");
 	g_hLungeInterval = 				FindConVar("z_lunge_interval");
 	g_hHunterPounceRe = 			FindConVar("hunter_pounce_ready_range");
-
+	g_hHunter_patch_convert_leap =  FindConVar("l4d2_hunter_patch_convert_leap");
+	g_hHunter_patch_crouch_pounce = FindConVar("l4d2_hunter_patch_crouch_pounce");
+	if(g_hHunter_patch_convert_leap)
+		g_hHunter_patch_convert_leap.AddChangeHook(IgnoreCrouchCvarChanged);
+	if(g_hHunter_patch_crouch_pounce)
+		g_hHunter_patch_crouch_pounce.AddChangeHook(IgnoreCrouchCvarChanged);
 	g_hLungeInterval.AddChangeHook(CvarChanged);
 	g_hFastPounceProximity.AddChangeHook(CvarChanged);
 	g_hPounceVerticalAngle.AddChangeHook(CvarChanged);
@@ -64,19 +71,26 @@ public void OnPluginStart() {
 }
 
 public void OnAllPluginsLoaded() {
+	if(g_hHunter_patch_convert_leap && g_hHunter_patch_crouch_pounce){
+		IgnoreCrounchDetect();
+	}
+}
+void IgnoreCrounchDetect(){
 	g_bIgnoreCrouch = false;
-
-	ConVar cv = FindConVar("l4d2_hunter_patch_convert_leap");
-	if (cv && cv.IntValue == 1) {
-		cv = FindConVar("l4d2_hunter_patch_crouch_pounce");
-		if (cv && cv.IntValue == 2)
+	if (g_hHunter_patch_convert_leap && g_hHunter_patch_convert_leap.IntValue == 1) 
+	{
+		if (g_hHunter_patch_crouch_pounce && g_hHunter_patch_crouch_pounce.IntValue == 2)
+		{
 			g_bIgnoreCrouch = true;
+		}			
 	}
 	if(g_bIgnoreCrouch){
 		g_hHunterPounceRe.FloatValue = 0.0;
+		FindConVar("z_pounce_crouch_delay").FloatValue =			0.0;
 		FindConVar("hunter_committed_attack_range").FloatValue =	0.0;
 	}else{
 		g_hHunterPounceRe.FloatValue = 3000.0;
+		FindConVar("z_pounce_crouch_delay").RestoreDefault();
 		FindConVar("hunter_committed_attack_range").FloatValue =	3000.0;
 	}
 }
@@ -99,9 +113,12 @@ void CvarChanged(ConVar convar, const char[] oldValue, const char[] newValue) {
 	GetCvars();
 }
 
+void IgnoreCrouchCvarChanged(ConVar convar, const char[] oldValue, const char[] newValue) {
+	IgnoreCrounchDetect();
+}
+
 void TweakSettings() {
 	OnAllPluginsLoaded();
-	FindConVar("z_pounce_crouch_delay").FloatValue =			0.0;
 	FindConVar("z_pounce_silence_range").FloatValue =			999999.0;
 	FindConVar("hunter_pounce_max_loft_angle").FloatValue =		0.0;
 	FindConVar("hunter_leap_away_give_up_range").FloatValue =	0.0;
@@ -116,6 +133,15 @@ void GetCvars() {
 	g_fStraightPounceProximity =	g_hStraightPounceProximity.FloatValue;
 	g_fAimOffsetSensitivityHunter =	g_hAimOffsetSensitivityHunter.FloatValue;
 	g_fWallDetectionDistance =		g_hWallDetectionDistance.FloatValue;
+	if(g_bIgnoreCrouch){
+		g_hHunterPounceRe.FloatValue = 0.0;
+		FindConVar("z_pounce_crouch_delay").FloatValue =			0.0;
+		FindConVar("hunter_committed_attack_range").FloatValue =	0.0;
+	}else{
+		g_hHunterPounceRe.FloatValue = 3000.0;
+		FindConVar("z_pounce_crouch_delay").RestoreDefault();
+		FindConVar("hunter_committed_attack_range").FloatValue =	3000.0;
+	}
 }
 
 public void OnMapEnd() {
