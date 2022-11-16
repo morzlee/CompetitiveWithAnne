@@ -1387,51 +1387,53 @@ void GetHUD1_Text(char[] output, int size)
 
 void GetHUD1_Text(char[] output, int size)
 {
-	bool IsStaticTank = false, IsStaticWitch = false;
+	int IsStaticTank = 0, IsStaticWitch = 0;
+	ConVar cv;
 	if(g_bWitchAndTankSystemAvailable){
-	    IsStaticTank = IsStaticTankMap();
-	    IsStaticWitch = IsStaticWitchMap();
-	}
+		cv = FindConVar("sm_tank_can_spawn");
+		if(cv.IntValue){
+			if(IsStaticTankMap()){
+				IsStaticTank = 2;
+			}else{
+				IsStaticTank = 1;
+			}
+	        
+	    }
+		cv = FindConVar("sm_witch_can_spawn");
+		if(cv.IntValue){
+			if(IsStaticWitchMap())
+			{
+				IsStaticWitch = 2;
+			}else
+			{
+				IsStaticWitch = 1;
+			}	    
+		}
+	}	
 	
 	FormatEx(output, size, "\0");
 	int boss_proximity = RoundToNearest(GetBossProximity() * 100.0);
 	int g_fWitchPercent, g_fTankPercent;
 	//int max_dist = GetConVarInt(FindConVar("inf_SpawnDistanceMin"));
-	if(!IsStaticWitch)
+	FormatEx(output, size, "进度: [ %d%% ]", boss_proximity);
+	if(IsStaticTank == 1)
 	{
 		g_fWitchPercent = RoundToNearest(GetWitchFlow(0) * 100.0);
-	}
-	else
+		FormatEx(output, size, "%s    坦克: [ %d%% ]", output, g_fTankPercent);
+	}else if(IsStaticTank == 2)
 	{
-		g_fWitchPercent = 0;
+		FormatEx(output, size, "%s    坦克: [ 固定 ]", output);
 	}
-	if(!IsStaticTank)
+	if(IsStaticWitch == 1)
 	{
 		g_fTankPercent = RoundToNearest(GetTankFlow(0) * 100.0);
+		FormatEx(output, size, "%s    女巫: [ %d%% ]", output, g_fWitchPercent);
 	}
-	else
+	else if(IsStaticWitch == 2)
 	{
-		g_fTankPercent = 0;
+		FormatEx(output, size, "%s    女巫: [ 固定 ]", output);
 	}
-	if(g_fTankPercent)
-	{
-		if(g_fWitchPercent)
-		{
-			FormatEx(output, size, "进度: [ %d%% ]    坦克: [ %d%% ]    女巫: [ %d%% ]", boss_proximity, g_fTankPercent, g_fWitchPercent);
-		}
-		else
-		{
-			FormatEx(output, size, "进度: [ %d%% ]    坦克: [ %d%% ]    女巫: [ 固定 ]", boss_proximity, g_fTankPercent);
-		}
-	} 
-	else if(g_fWitchPercent)
-	{
-		FormatEx(output, size, "进度: [ %d%% ]    坦克: [ 固定 ]    女巫: [ %d%% ]", boss_proximity, g_fWitchPercent);
-	}
-	else
-	{
-		FormatEx(output, size, "当前: [ %d ]    坦克: [ 固定 ]    女巫:[ 固定 ]", boss_proximity);
-	}
+	PrintToConsoleAll("tank: %d witch: %d", IsStaticTank, IsStaticTank);
 }
 
 /****************************************************************************************************/
