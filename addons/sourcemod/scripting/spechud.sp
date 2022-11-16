@@ -224,6 +224,7 @@ public void GameConVarChanged(ConVar convar, const char[] oldValue, const char[]
 public void ServerCvarChanged(ConVar convar, const char[] oldValue, const char[] newValue)
 {
 	FillServerNamer();
+	FillReadyConfig();
 }
 
 public void OnAllPluginsLoaded()
