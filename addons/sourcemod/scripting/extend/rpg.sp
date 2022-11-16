@@ -1322,7 +1322,7 @@ public void Survivor_skin(int client)
 		menu.AddItem("option11", "藍綠色", player[client].SkinType == 11 ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 		menu.AddItem("option12", "粉红色", player[client].SkinType == 12 ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 		menu.AddItem("option13", "紫色", player[client].SkinType == 13 ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
-		if((g_bl4dstatsSystemAvailable && l4dstats_IsTopPlayer(client,20)) || !g_bl4dstatsSystemAvailable)
+		if((g_bl4dstatsSystemAvailable && l4dstats_IsTopPlayer(client,20)) || GetUserAdmin(client).ImmunityLevel == 100 || !g_bl4dstatsSystemAvailable)
 			menu.AddItem("option14", "黑色", player[client].SkinType == 14 ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 		DumpAdminCache(AdminCache_Admins,true);
 		DumpAdminCache(AdminCache_Groups,true);

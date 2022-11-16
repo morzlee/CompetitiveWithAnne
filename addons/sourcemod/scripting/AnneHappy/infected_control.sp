@@ -78,6 +78,7 @@ ConVar
 // Ints
 int 
 	g_iSiLimit, 						//特感数量
+	g_iRushManIndex,					//跑男id
 	g_iWaveTime, 						//Debug时输出这是第几波刷特
 	g_iTotalSINum = 0,					//总共还活着的特感
 	g_iEnableSIoption = 63,				//可生成的特感种类
@@ -522,7 +523,7 @@ stock bool GetSpawnPos(float fSpawnPos[3], int g_iTargetSurvivor, float SpawnDis
 		// 找位条件，可视，是否在有效 NavMesh，是否卡住，否则先会判断是否在有效 Mesh 与是否卡住导致某些位置刷不出特感
 		int count2=0;
 		//生成的时候只能在有跑男情况下才特意生成到幸存者前方
-		while (PlayerVisibleToSDK(fSpawnPos, IsTeleport) || !IsOnValidMesh(fSpawnPos) || IsPlayerStuck(fSpawnPos) || (g_bPickRushMan && !Is_Pos_Ahead(fSpawnPos, g_iTargetSurvivor)))
+		while (PlayerVisibleToSDK(fSpawnPos, IsTeleport) || !IsOnValidMesh(fSpawnPos) || IsPlayerStuck(fSpawnPos) || ((g_bPickRushMan || IsTeleport) && !Is_Pos_Ahead(fSpawnPos, g_iTargetSurvivor)))
 		{
 			count2++;
 			if(count2 > 20)
@@ -547,7 +548,7 @@ stock bool GetSpawnPos(float fSpawnPos[3], int g_iTargetSurvivor, float SpawnDis
 
 stock bool SpawnInfected(float fSpawnPos[3], float SpawnDistance, int iZombieClass, bool IsTeleport = false)
 {
-	int sum =0;
+
 	float fSurvivorPos[3];
 	//Debug_Print("生还者看不到");
 	// 生还数量为 4，循环 4 次，检测此位置到生还的距离是否小于 750 是则刷特，此处可以刷新 1 ~ g_iSiLimit 只特感，如果此处刷完，则上面的 SpawnSpecial 将不再刷特
@@ -560,16 +561,11 @@ stock bool SpawnInfected(float fSpawnPos[3], float SpawnDistance, int iZombieCla
 
 		//生还者倒地或者挂边，也不生成
 		if(IsClientIncapped(index)){
-			sum++;
-			//如果全部人都倒了，直接返回
-			if(sum == g_iSurvivorNum){
-				return false;
-			}
 			continue;	
 		}
+		//非跑男模式目标已满，跳过
 		if(g_bTargetSystemAvailable && !g_bPickRushMan && IsClientReachLimit(index))
 		{
-			//Debug_Print("玩家%N 目标已满，跳过", client);
 			continue;
 		}
 		GetClientEyePosition(index, fSurvivorPos);
@@ -1084,6 +1080,11 @@ bool CanBeTeleport(int client)
 //5秒内以1s检测一次，5次没被看到，就可以踢出并加入传送队列
 public Action Timer_PositionSi(Handle timer)
 {
+	//每1s找一次跑男或者是否所有全被控
+	if(CheckRushManAndAllPinned())
+	{
+		return Plugin_Continue;
+	}
 	for (int client = 1; client <= MaxClients; client++)
 	{
 		if(CanBeTeleport(client)){
@@ -1132,7 +1133,7 @@ public Action Timer_PositionSi(Handle timer)
 		}
 		
 	}
-	//每1s找一次攻击目标，主要用于检测跑男，正常情况ongameframe会调用
+	//每1s找一次攻击目标，主要用于检测跑男，正常情况ongameframe会调用找攻击目标
 	g_iTargetSurvivor = GetTargetSurvivor();
 	return Plugin_Continue;
 }
@@ -1149,68 +1150,85 @@ stock bool IsSpitter(int client)
 	}
 }
 
-
-int GetTargetSurvivor()
+bool CheckRushManAndAllPinned()
 {
 	bool TempRushMan = g_bPickRushMan;
-	int iSurvivors[8] = {0} , iSurvivorsLimit[8] = {0} , iAllSurvivorsIndex[8] = {0}, iSurvivorIndex = 0, iSurvivorIndexLimit = 0, iAllSurvivorsNum = 0;
+	int iSurvivors[8] = {0}, iSurvivorIndex = 0, PinnedNumber = 0;
 	float iSurvivorsOrigin[8][3], OriginTemp[3];
 	for (int client = 1; client <= MaxClients; client++)
 	{
 		if (IsValidSurvivor(client) && IsPlayerAlive(client))
 		{
+			if(IsPinned(client) || IsClientIncapped(client)){
+				PinnedNumber++;
+			}
 			GetClientAbsOrigin(client, OriginTemp);
-			iSurvivorsOrigin[iAllSurvivorsNum] = OriginTemp;
-			iAllSurvivorsIndex[iAllSurvivorsNum++] = client;
-			if((!IsPinned(client) || !IsClientIncapped(client))){
+			if(iSurvivorIndex < 8)
+			{
+				iSurvivorsOrigin[iSurvivorIndex] = OriginTemp;
+				iSurvivors[iSurvivorIndex++] = client;
+			}		
+		}
+	}
+	int target = L4D_GetHighestFlowSurvivor();
+	if (iSurvivorIndex > 1 && IsValidClient(target))
+	{
+		GetClientAbsOrigin(target, OriginTemp);
+		for(int i =0; i < iSurvivorIndex; i++){
+			if(IsPinned(target) || IsClientIncapped(target) || (iSurvivors[i] != target && GetVectorDistance(iSurvivorsOrigin[i], OriginTemp) <= 1000.0))
+			{
+				g_bPickRushMan = false;
+				g_iRushManIndex = -1;
+				if(TempRushMan != g_bPickRushMan){
+					StartForward(g_bPickRushMan);
+				}
+				return PinnedNumber == iSurvivorIndex;
+			}
+		}
+		g_bPickRushMan = true;
+		g_iRushManIndex = target;
+		if(TempRushMan != g_bPickRushMan){
+			StartForward(g_bPickRushMan);
+		}
+	}
+	return PinnedNumber == iSurvivorIndex;
+}
+
+int GetTargetSurvivor()
+{
+	//如果有跑男，抓跑男
+	if(g_bPickRushMan && IsValidSurvivor(g_iRushManIndex) && IsPlayerAlive(g_iRushManIndex) && !IsPinned(g_iRushManIndex)){
+		return g_iRushManIndex;
+	}
+	//没有跑男，抓目标未满的生还者
+	else
+	{
+		int iSurvivors[8] = {0} , iSurvivorIndex = 0;
+		for (int client = 1; client <= MaxClients; client++)
+		{
+			if (IsValidSurvivor(client) && IsPlayerAlive(client) && (!IsPinned(client) || !IsClientIncapped(client)))
+			{
 				g_bIsLate = true;
+				if(g_bTargetSystemAvailable && IsClientReachLimit(client))
+				{
+					continue;
+				}
 				if (iSurvivorIndex < 8)
 				{
 					iSurvivors[iSurvivorIndex] = client;
 					iSurvivorIndex += 1;
 				}
-				if(g_bTargetSystemAvailable && IsClientReachLimit(client))
-				{
-					continue;
-				}
-				if (iSurvivorIndexLimit < 8)
-				{
-					iSurvivorsLimit[iSurvivorIndexLimit] = client;
-					iSurvivorIndexLimit += 1;
-				}
-			}
-			
-		}
-	}
-	int target = L4D_GetHighestFlowSurvivor();
-	//遍历所有正常人，检测与进度最远的人的距离是否已经大于1000.0，如果是，开启针对跑男模式，否则选择随机未满目标的正常生还者
-	if (iSurvivorIndex > 0 && iAllSurvivorsNum > 1 && IsValidClient(target))
-	{
-		GetClientAbsOrigin(target, OriginTemp);
-		for(int i =0; i < iAllSurvivorsNum; i++){
-			if(IsPinned(target) || IsClientIncapped(target) || (iAllSurvivorsIndex[i] != target && GetVectorDistance(iSurvivorsOrigin[i], OriginTemp) <= 1000.0)){
-				g_bPickRushMan = false;
-				if(TempRushMan != g_bPickRushMan){
-					StartForward(g_bPickRushMan);
-				}
-				//Debug_Print("正常模式刷特");
-				return iSurvivorsLimit[GetRandomInt(0, iSurvivorIndexLimit - 1)];
 			}
 		}
-		g_bPickRushMan = true;
-		if(TempRushMan != g_bPickRushMan){
-			StartForward(g_bPickRushMan);
-		}
-	}
-	if(target == -1){
-		if(iSurvivorIndex > 0){
-			return iSurvivorsLimit[GetRandomInt(0, iSurvivorIndexLimit - 1)];
-		}else if(iAllSurvivorsNum > 0)
+		//遍历所有正常人，检测与进度最远的人的距离是否已经大于1000.0，如果是，开启针对跑男模式，否则选择随机未满目标的正常生还者
+		if (iSurvivorIndex > 0)
 		{
-			return iAllSurvivorsIndex[GetRandomInt(0, iAllSurvivorsNum - 1)];
-		}	
+			return iSurvivors[GetRandomInt(0, iSurvivorIndex - 1)];
+		}
+		else{
+			return L4D_GetHighestFlowSurvivor();
+		}
 	}
-	return target;
 }
 
 void StartForward(bool IsRush){

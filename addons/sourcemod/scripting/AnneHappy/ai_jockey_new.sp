@@ -172,33 +172,34 @@ public Action OnPlayerRunCmd(int jockey, int &buttons, int &impulse, float vel[3
 				// 空中转向
 				else
 				{
-					//PrintToConsoleAll("检测猴子在空中");
-					float fAngles[3], new_velvec[3] = {0.0}, self_target_vec[3] = {0.0};
-					GetVectorAngles(fSpeed, fAngles);
-					fAngles[0] = fAngles[2] = 0.0;
-					GetAngleVectors(fAngles, new_velvec, NULL_VECTOR, NULL_VECTOR);
-					NormalizeVector(new_velvec, new_velvec);
-					// 保存当前位置
-					fJockeyPos[2] = fTargetPos[2] = 0.0;
-					MakeVectorFromPoints(fJockeyPos, fTargetPos, self_target_vec);
-					NormalizeVector(self_target_vec, self_target_vec);
-					float fAngleDifference = RadToDeg(ArcCosine(GetVectorDotProduct(new_velvec, self_target_vec)));
-					//PrintToConsoleAll("速度夹角：%f", fAngleDifference);
-					// 计算距离
-					if (fAngleDifference > g_fJockeyAirAngles && fAngleDifference < 145.0)
-					{
-						//重新设置方向
-						MakeVectorFromPoints(fJockeyPos, fTargetPos, new_velvec);
-						GetVectorAngles(new_velvec, fAngles);
+					//太近不允许强制换方向
+					if(fDistance > 100.0){
+						//PrintToConsoleAll("检测猴子在空中");
+						float fAngles[3], new_velvec[3] = {0.0}, self_target_vec[3] = {0.0};
+						GetVectorAngles(fSpeed, fAngles);
+						fAngles[0] = fAngles[2] = 0.0;
+						GetAngleVectors(fAngles, new_velvec, NULL_VECTOR, NULL_VECTOR);
 						NormalizeVector(new_velvec, new_velvec);
-						// 按照原来速度向量长度 + 缩放长度缩放修正后的速度向量，觉得太阴间了可以修改
-						// ScaleVector(new_velvec, speed_length + curspeed);
-						if(fCurrentSpeed > SPEED_FIXED_LENGTH)
-							ScaleVector(new_velvec, SPEED_FIXED_LENGTH);
-						else
-							ScaleVector(new_velvec, fCurrentSpeed);
-						//PrintToConsoleAll("方向夹角为： %f,强制转向后的速度: %f", fAngleDifference, GetVectorLength(new_velvec));
-						TeleportEntity(jockey, NULL_VECTOR, fAngles, new_velvec);
+						// 保存当前位置
+						// 生还比特感高，关闭z方向
+						if(fTargetPos[2] > fTargetPos[2])
+							fJockeyPos[2] = fTargetPos[2] = 0.0;
+						MakeVectorFromPoints(fJockeyPos, fTargetPos, self_target_vec);
+						NormalizeVector(self_target_vec, self_target_vec);
+						float fAngleDifference = RadToDeg(ArcCosine(GetVectorDotProduct(new_velvec, self_target_vec)));
+						//PrintToConsoleAll("速度夹角：%f", fAngleDifference);
+						// 计算距离
+						if (fAngleDifference > g_fJockeyAirAngles && fAngleDifference < 120.0)
+						{
+							//重新设置方向
+							MakeVectorFromPoints(fJockeyPos, fTargetPos, new_velvec);
+							GetVectorAngles(new_velvec, fAngles);
+							NormalizeVector(new_velvec, new_velvec);
+							// 按照原来速度向量长度 + 缩放长度缩放修正后的速度向量，觉得太阴间了可以修改
+							ScaleVector(new_velvec, fCurrentSpeed * 0.9);
+							//PrintToConsoleAll("方向夹角为： %f,强制转向后的速度: %f", fAngleDifference, GetVectorLength(new_velvec));
+							TeleportEntity(jockey, NULL_VECTOR, fAngles, new_velvec);
+						}
 					}
 					// 不在地上，禁止按下跳跃键和攻击键
 					buttons &= ~IN_JUMP;
@@ -334,7 +335,7 @@ int  NearestSurvivor(int client) {
 	int minClient = client;
 	GetClientAbsOrigin(client, vPos);
 	for (i = 1; i <= MaxClients; i++) {
-		if (i != client && IsClientInGame(i) && GetClientTeam(i) == 2 && IsPlayerAlive(i)) {
+		if (i != client && IsClientInGame(i) && GetClientTeam(i) == 2 && IsPlayerAlive(i) && !L4D_IsPlayerIncapacitated(i)) {
 			GetClientAbsOrigin(i, vTar);
 			dist = GetVectorDistance(vPos, vTar);
 			if (minDist == -1.0 || dist < minDist){

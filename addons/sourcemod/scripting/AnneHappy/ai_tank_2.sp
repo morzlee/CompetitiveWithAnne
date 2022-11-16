@@ -266,7 +266,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 						return Plugin_Changed;
 					}
 				}
-				else if (flags == FL_JUMPING)
+				else if (!(flags & FL_ONGROUND))
 				{
 					float velangles[3] = {0.0}, new_velvec[3] = {0.0}, self_target_vec[3] = {0.0};
 					/* float speed_length = 0.0;
@@ -276,10 +276,12 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					GetAngleVectors(velangles, new_velvec, NULL_VECTOR, NULL_VECTOR);
 					NormalizeVector(new_velvec, new_velvec);
 					// 获取自身与生还之间的向量，x，y 方向不置 0，z 方向置 0
-					selfpos[2] = targetpos[2] = 0.0;
+					if(selfpos[2] < targetpos[2])
+						selfpos[2] = targetpos[2] = 0.0;
 					MakeVectorFromPoints(selfpos, targetpos, self_target_vec);
 					NormalizeVector(self_target_vec, self_target_vec);
-					if (RadToDeg(ArcCosine(GetVectorDotProduct(new_velvec, self_target_vec))) > g_hAirAngleRestrict.FloatValue)
+					float angeldifference = RadToDeg(ArcCosine(GetVectorDotProduct(new_velvec, self_target_vec)));
+					if ( angeldifference > g_hAirAngleRestrict.FloatValue && angeldifference < 120.0)
 					{
 						MakeVectorFromPoints(selfpos, targetpos, new_velvec);
 						GetVectorAngles(new_velvec, velangles);
