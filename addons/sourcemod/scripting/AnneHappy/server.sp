@@ -9,6 +9,7 @@
 #include <colors>
 #undef REQUIRE_PLUGIN
 #include <CreateSurvivorBot>
+#include <witch_and_tankifier>
 
 
 #define CVAR_FLAGS			FCVAR_NOTIFY
@@ -30,6 +31,23 @@ enum ZombieClass
 	ZC_WITCH,
 	ZC_TANK
 };
+char sFinalmapNamp[14][] =
+{
+	"c1m4_atrium",
+	"c2m5_concert",
+	"c3m4_plantation",
+	"c4m5_milltown_escape",
+	"c5m5_bridge",
+	"c6m3_port",
+	"c7m3_port",
+	"c8m5_rooftop",
+	"c9m2_lots",
+	"c10m5_houseboat",
+	"c11m5_runway",
+	"c12m5_cornfield",
+	"c13m4_cutthroatcreek",
+	"c14m2_lighthouse"
+};
 
 public Plugin myinfo = 
 {
@@ -43,6 +61,7 @@ public Plugin myinfo =
 
 ConVar hMaxSurvivors, hSurvivorsManagerEnable, hCvarAutoKickTank;
 int iMaxSurvivors, iEnable, iAutoKickTankEnable;
+bool g_bWitchAndTankSystemAvailable = false;
 
 public void OnPluginStart()
 {
@@ -50,6 +69,7 @@ public void OnPluginStart()
 	AddAmbientSoundHook(view_as<AmbientSHook>(OnAmbientSound));
 	RegAdminCmd("sm_restartmap", RestartMap, ADMFLAG_ROOT, "restarts map");
 	HookEvent("witch_killed", WitchKilled_Event);
+	HookEvent("round_start", RoundStart_Event);
 	HookEvent("finale_win", ResetSurvivors);
 	HookEvent("map_transition", ResetSurvivors);
 	HookEvent("player_spawn", 	Event_PlayerSpawn);
@@ -67,6 +87,18 @@ public void OnPluginStart()
 	hCvarAutoKickTank.AddChangeHook(ConVarChanged_Cvars);
 	GetCvars();
 } 
+
+public void OnAllPluginsLoaded(){
+	g_bWitchAndTankSystemAvailable = LibraryExists("witch_and_tankifier");
+}
+public void OnLibraryAdded(const char[] name)
+{
+    if ( StrEqual(name, "witch_and_tankifier") ) { g_bWitchAndTankSystemAvailable = true; }
+}
+public void OnLibraryRemoved(const char[] name)
+{
+    if ( StrEqual(name, "witch_and_tankifier") ) { g_bWitchAndTankSystemAvailable = true; }
+}
 
 public void ConVarChanged_Cvars(Handle convar, const char[] oldValue, const char[] newValue)
 {
@@ -137,7 +169,7 @@ void GetCvars()
 public void Event_PlayerSpawn(Event hEvent, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId( hEvent.GetInt( "userid" ));
-	if( IsValidClient(client) && IsAiTank(client) &&iAutoKickTankEnable){
+	if( IsValidClient(client) && IsAiTank(client) && iAutoKickTankEnable){
 		KickMoreTank(true);
 	}
 		
@@ -358,6 +390,32 @@ public Action Timer_AutoGive(Handle timer)
 		}
 	}
 	return Plugin_Continue;
+}
+
+//最终图禁用流程克，只启用第一个最终事件克
+public void RoundStart_Event(Handle event, char[] name, bool dontBroadcast){
+	CreateTimer(1.0, HandleSetTank, _, TIMER_REPEAT);
+}
+
+public Action HandleSetTank(Handle timer)
+{
+	if(g_bWitchAndTankSystemAvailable && L4D_IsMissionFinalMap()){
+		char mapname[256];
+		GetCurrentMap(mapname, sizeof(mapname));
+		if(!CheckOfficalFinal(mapname)){
+			ServerCommand("static_tank_map %s", mapname);
+			ServerCommand("tank_map_only_first_event %s", mapname);
+		}	
+	}
+	return Plugin_Stop;
+}
+
+bool CheckOfficalFinal(char[] mapname){
+	for(int i = 0; i < 14; i++){
+		if(strcmp(sFinalmapNamp[i], mapname, false) == 1)
+			return true;
+	}
+	return false;
 }
 
 //秒妹回实血

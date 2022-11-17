@@ -1414,19 +1414,21 @@ void GetHUD1_Text(char[] output, int size)
 	FormatEx(output, size, "\0");
 	int boss_proximity = RoundToNearest(GetBossProximity() * 100.0);
 	int g_fWitchPercent, g_fTankPercent;
+	g_fTankPercent = RoundToNearest(GetTankFlow(0)* 100.0);
+	g_fWitchPercent = RoundToNearest(GetWitchFlow(0) * 100.0);
 	//int max_dist = GetConVarInt(FindConVar("inf_SpawnDistanceMin"));
 	FormatEx(output, size, "进度: [ %d%% ]", boss_proximity);
-	if(IsStaticTank == 1)
+	if(IsStaticTank == 1 || (!g_bWitchAndTankSystemAvailable && g_fTankPercent))
 	{
-		g_fTankPercent = RoundToNearest(GetTankFlow(0)* 100.0);
+		
 		FormatEx(output, size, "%s    坦克: [ %d%% ]", output, g_fTankPercent);
 	}else if(IsStaticTank == 2)
 	{
 		FormatEx(output, size, "%s    坦克: [ 固定 ]", output);
 	}
-	if(IsStaticWitch == 1)
+	if(IsStaticWitch == 1 || (!g_bWitchAndTankSystemAvailable && g_fWitchPercent))
 	{
-		g_fWitchPercent = RoundToNearest(GetWitchFlow(0) * 100.0);
+		
 		FormatEx(output, size, "%s    女巫: [ %d%% ]", output, g_fWitchPercent);
 	}
 	else if(IsStaticWitch == 2)

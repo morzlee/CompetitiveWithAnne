@@ -107,4 +107,30 @@
 - 已经取消隐藏的处理
 还有一些小修复，具体看[commit log](https://github.com/fantasylidong/CompetitiveWithAnne/commits/master)
 #### versus_coop_mode.smx
-对抗模式玩战役，完美修复，谢谢[钵钵鸡大佬](https://github.com/umlka/)倾力支持
+对抗模式玩战役，完美修复，谢谢[钵钵鸡大佬](https://github.com/umlka/) 倾力支持
+PS：这种处理方式相比原来的换成写实处理有以下几点好处
+- 永远是对抗模式地图，比如c5m3会一直是pathA，而且对抗的梯子或者nav修复都存在
+- hunter的属性会为对抗属性，原来的改为写实处理第二回合会导致hunter变为战役属性，会使hunter特别难爆
+- 可以更改回合重启时间，加快坐牢速度（建议改为1，太低了玩家能在包被删除前偷包）
+- 回合结算时能看到整章节的数据，谁偷懒一目了然
+
+
+### 2022年11月17日更新记录
+#### 刷特插件infected_control.smx
+修复一个位置多刷引起的刷很多同种类特感问题，跑男针对模式
+#### hitstatic survivor_mvp l4d_stats
+更改灭团处理方式，新的versus_coop_mode引起
+#### l4d2_script_hud 插件
+如果tank或者witch不生成，不显示他的进度为固定，而是直接不显示，Static改为固定，进度加上%分号
+#### ai_jockey_new更新
+进攻性更强
+#### ai_hunter_new更新
+顺便可以开启无蓄力hunter
+#### join插件
+增加自动更新插件开关
+#### SI_Target_limit
+适配刷特插件的跑男针对
+#### L4D2 Weapon Attributes
+同步上游更新，去除l4d2_smg_reload_tweak.smx
+#### 其他 
+救援关全部关闭流程克，只启用第一个事件克，三方图使用server插件更改，同步上游fix更新，单人模式传送时间改为默认3秒
