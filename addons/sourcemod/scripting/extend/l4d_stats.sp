@@ -384,6 +384,7 @@ new Handle:cvar_SoundsEnabled = INVALID_HANDLE;
 new Handle:MeleeKillTimer[MAXPLAYERS + 1];
 new MeleeKillCounter[MAXPLAYERS + 1];
 new ClientPlayTime[MAXPLAYERS + 1];
+new bool:ClientEnabled[MAXPLAYERS + 1];
 new CheckPlayerPoint[100];
 Handle AnnounceGameTime, SuccessGetPlayerTime;
 // Plugin Info
@@ -1593,14 +1594,15 @@ public Action Event_RoundEnd(Handle:event, String:event_name[], bool:dontBroadca
 		return Plugin_Continue;
 	if (AnneMultiPlayerMode()){
 		Score = 200;
-	}else{
-		Score = 50;
+	}
+	else{
+		Score = 0;
 	}
 
 	
 	for(int i = 1; i <= MaxClients; i++){
-		if(IsClientConnected(i) && IsClientInGame(i) && GetClientTeam(i) == 2 && !IsFakeClient(i)){
-			StatsPrintToChat(i, "\x03所有幸存者 \x01都 \x03掉了 \x04%i \x01分 by \x03大家又坐牢了!", Score);
+		if(IsClientConnected(i) && IsClientInGame(i) && (GetClientTeam(i) == 2 || ClientEnabled[i]) && !IsFakeClient(i) && Score > 0){
+			StatsPrintToChat(i, "\x03所有参与玩家 \x01都 \x03掉了 \x04%i \x01分 by \x03大家又坐牢了!", Score);
 			decl String:UpdatePoints[32];
 			decl String:UserID[MAX_LINE_WIDTH];
 			GetClientRankAuthString(i, UserID, sizeof(UserID));
@@ -9496,6 +9498,15 @@ ResetInfVars()
 	}
 }
 
+public Action L4D_OnFirstSurvivorLeftSafeArea(int client){
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if(IsClientInGame(i) && GetClientTeam(i) == 2)
+			ClientEnabled[i] = true;
+	}
+	return Plugin_Continue;
+}
+
 ResetVars()
 {
 	ClearTrie(FriendlyFireDamageTrie);
@@ -9521,6 +9532,7 @@ ResetVars()
 		AnnounceCounter[i] = 0;
 		CurrentPoints[i] = 0;
 		ClientRankMute[i] = false;
+		ClientEnabled[i] = false;
 	}
 
 	for (i = 0; i < MAXPLAYERS + 1; i++)

@@ -173,7 +173,7 @@ public Action OnPlayerRunCmd(int jockey, int &buttons, int &impulse, float vel[3
 				else
 				{
 					//太近不允许强制换方向
-					if(fDistance > 100.0){
+					if(fDistance > 150.0){
 						//PrintToConsoleAll("检测猴子在空中");
 						float fAngles[3], new_velvec[3] = {0.0}, self_target_vec[3] = {0.0};
 						GetVectorAngles(fSpeed, fAngles);
