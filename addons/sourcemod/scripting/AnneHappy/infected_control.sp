@@ -98,7 +98,8 @@ float
 	g_fSpawnDistanceMin, 				//特感的最小生成距离
 	g_fSpawnDistanceMax, 				//特感的最大生成距离
 	g_fSpawnDistance, 					//特感的当前生成距离
-	g_fTeleportDistance, 				//特感传送距离生还的最小距离
+	g_fTeleportDistanceMin, 			//特感传送距离生还的最小距离
+	g_fTeleportDistance,				//特感当前传送生成距离
 	g_fSiInterval;						//特感的生成时间间隔
 // Bools
 bool 
@@ -149,7 +150,7 @@ public void OnPluginStart()
 	g_hIgnoreIncappedSurvivorSight = CreateConVar("inf_IgnoreIncappedSurvivorSight", "1", "特感传送检测是否被看到的时候是否忽略倒地生还者视线", CVAR_FLAG, true, 0.0, true, 1.0);
 	g_hAddDamageToSmoker= CreateConVar("inf_AddDamageToSmoker", "0", "单人模式smoker拉人时是否5倍伤害", CVAR_FLAG, true, 0.0, true, 1.0);
 	//传送会根据这个数值画一个以选定生还者为核心，两边各长inf_TeleportDistance单位距离，高inf_TeleportDistance距离的长方形区域内找复活位置,PS传送最好近一点
-	g_hTeleportDistance = CreateConVar("inf_TeleportDistance", "600.0", "特感传送区域的复活大小", CVAR_FLAG, true, g_hSpawnDistanceMin.FloatValue);
+	g_hTeleportDistance = CreateConVar("inf_TeleportDistance", "600.0", "特感传送区域的最小复活大小", CVAR_FLAG, true, g_hSpawnDistanceMin.FloatValue);
 	g_hSiLimit = CreateConVar("l4d_infected_limit", "6", "一次刷出多少特感", CVAR_FLAG, true, 0.0);
 	g_hSiInterval = CreateConVar("versus_special_respawn_interval", "16.0", "对抗模式下刷特时间控制", CVAR_FLAG, true, 0.0);
 	g_hMaxPlayerZombies = FindConVar("z_max_player_zombies");
@@ -252,7 +253,7 @@ void GetCvars()
 	g_fSpawnDistanceMax = g_hSpawnDistanceMax.FloatValue;
 	g_fSpawnDistanceMin = g_hSpawnDistanceMin.FloatValue;
 	g_bTeleportSi = g_hTeleportSi.BoolValue;
-	g_fTeleportDistance = g_hTeleportDistance.FloatValue;
+	g_fTeleportDistanceMin = g_hTeleportDistance.FloatValue;
 	g_fSiInterval = g_hSiInterval.FloatValue;
 	g_iSiLimit = g_hSiLimit.IntValue;
 	g_iTeleportCheckTime = g_hTeleportCheckTime.IntValue;
@@ -423,6 +424,10 @@ public void OnGameFrame()
 			if(g_iTeleportIndex > 0)
 			{
 				g_iTargetSurvivor = GetTargetSurvivor();
+				if(g_fTeleportDistance < g_fSpawnDistanceMax)
+				{
+					g_fTeleportDistance += 10.0;
+				}
 				float fSpawnPos[3] = {0.0};
 				if(GetSpawnPos(fSpawnPos, g_iTargetSurvivor, g_fTeleportDistance, true))	
 				{
@@ -1096,6 +1101,10 @@ public Action Timer_PositionSi(Handle timer)
 				{
 					int type = GetInfectedClass(client);
 					if(type >= 1 && type <= 6){
+						if(g_iTeleportIndex == 0)
+						{
+							g_fTeleportDistance = g_fTeleportDistanceMin;
+						}
 						aTeleportQueue.Push(type);
 						g_iTeleportIndex += 1;
 						Debug_Print("<传送队列> %N踢出，进入传送队列，当前 <传送队列> 队列长度：%d 队列索引：%d", client, aTeleportQueue.Length, g_iTeleportIndex);
