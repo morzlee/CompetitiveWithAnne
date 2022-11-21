@@ -4,6 +4,7 @@
 #include <sourcemod>
 #include <builtinvotes>
 #include <colors>
+#include <left4dhooks>
 #define L4D2UTIL_STOCKS_ONLY
 #include <l4d2util_rounds>
 #undef REQUIRE_PLUGIN
@@ -26,7 +27,8 @@ Handle
 	g_forwardUpdateBosses;
 
 ConVar
-	g_hCvarBossVoting;
+	g_hCvarBossVoting,
+	g_hCvarBossVotingLimit;
 
 bool
 	bv_bTank,
@@ -34,6 +36,7 @@ bool
 
 int
 	bv_iTank,
+	g_iRound,
 	bv_iWitch;
 
 public void OnPluginStart()
@@ -42,12 +45,40 @@ public void OnPluginStart()
 	g_forwardUpdateBosses = CreateGlobalForward("OnUpdateBosses", ET_Ignore, Param_Cell, Param_Cell);
 	
 	g_hCvarBossVoting = CreateConVar("l4d_boss_vote", "1", "Enable boss voting", FCVAR_NOTIFY, true, 0.0, true, 1.0); // Sets if boss voting is enabled or disabled
+	g_hCvarBossVotingLimit = CreateConVar("l4d_boss_vote_limit", "0", "Enable boss voting after limit round", FCVAR_NOTIFY, true, 0.0); 
+
+	HookEvent("map_transition", ResetRound, EventHookMode_PostNoCopy);
 	
 	RegConsoleCmd("sm_voteboss", VoteBossCmd); // Allows players to vote for custom boss spawns
 	RegConsoleCmd("sm_bossvote", VoteBossCmd); // Allows players to vote for custom boss spawns
 	
 	RegAdminCmd("sm_ftank", ForceTankCommand, ADMFLAG_BAN);
 	RegAdminCmd("sm_fwitch", ForceWitchCommand, ADMFLAG_BAN);
+
+	g_iRound = 0;
+}
+
+public void ResetRound(Handle event, const char[] name, bool dontBroadcast)
+{
+	g_iRound = 0;
+}
+
+public Action L4D_OnFirstSurvivorLeftSafeArea(int client){
+	g_iRound += 1;
+	return Plugin_Continue;
+}
+
+public bool Reachlimit()
+{
+	if(FindConVar("l4d_infected_limit") && GetConVarInt(FindConVar("l4d_infected_limit")) >= 8)
+	{
+		return false;
+	}
+	if(g_iRound < g_hCvarBossVotingLimit.IntValue)
+	{
+		return false;
+	}
+	return true;
 }
 
 bool RunVoteChecks(int client)
@@ -75,6 +106,11 @@ bool RunVoteChecks(int client)
 	if (!IsNewBuiltinVoteAllowed())
 	{
 		CPrintToChat(client, "%t %t", "Tag", "CannotBeCalled");
+		return false;
+	}
+	if(!Reachlimit())
+	{
+		CPrintToChat(client, "%t %t", "Tag", "RoundNotReachLimit", g_hCvarBossVotingLimit.IntValue - g_iRound);
 		return false;
 	}
 	return true;

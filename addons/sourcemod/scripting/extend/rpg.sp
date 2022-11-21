@@ -706,7 +706,11 @@ public Action EventRoundStart(Handle event, const char []name, bool dontBroadcas
 {
 	for(int i=1;i<MaxClients;i++){
 		player[i].ClientPoints=500;
+		player[i].ClientFirstBuy = true;
+		player[i].CanBuy = true;
 	}
+	IsStart = false;
+	valid = true;
 	return Plugin_Continue;
 }
 
