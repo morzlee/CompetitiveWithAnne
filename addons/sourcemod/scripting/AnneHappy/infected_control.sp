@@ -27,7 +27,10 @@
 #define ENABLE_HUNTER			(1 << 2)		
 #define ENABLE_SPITTER			(1 << 3)		
 #define ENABLE_JOCKEY			(1 << 4)		
-#define ENABLE_CHARGER			(1 << 5)		
+#define ENABLE_CHARGER			(1 << 5)	
+
+// Spitter吐口水之后能传送的时间
+#define SPIT_INTERVAL 2.0
 
 
 stock const char InfectedName[10][] =
@@ -95,6 +98,7 @@ int
 
 // Floats
 float 
+	g_fSpitterSpitTime[MAXPLAYERS + 1], //Spitter吐口水时间
 	g_fSpawnDistanceMin, 				//特感的最小生成距离
 	g_fSpawnDistanceMax, 				//特感的最大生成距离
 	g_fSpawnDistance, 					//特感的当前生成距离
@@ -108,6 +112,7 @@ bool
 	g_bAddDamageToSmoker,				//是否对smoker增伤（一般alone模式开启）
 	g_bIgnoreIncappedSurvivorSight,		//是否忽略倒地生还者的视线
 	g_bIsLate = false, 					//text插件是否发送开启刷特命令
+	g_bSmokerAvailable = false,			//ai_smoker_new是否存在
 	g_bTargetSystemAvailable = false;	//目标选择插件是否存在
 // Handle
 Handle 
@@ -128,14 +133,17 @@ public APLRes AskPluginLoad2(Handle plugin, bool late, char[] error, int err_max
 
 public void OnAllPluginsLoaded(){
 	g_bTargetSystemAvailable = LibraryExists("si_target_limit");
+	g_bSmokerAvailable = LibraryExists("ai_smoker_new");
 }
 public void OnLibraryAdded(const char[] name)
 {
     if ( StrEqual(name, "si_target_limit") ) { g_bTargetSystemAvailable = true; }
+	else if( StrEqual(name, "ai_smoker_new") ) { g_bSmokerAvailable = true; }
 }
 public void OnLibraryRemoved(const char[] name)
 {
     if ( StrEqual(name, "si_target_limit") ) { g_bTargetSystemAvailable = false; }
+	else if( StrEqual(name, "ai_smoker_new") ) { g_bSmokerAvailable = false; }
 }
 public void OnPluginStart()
 {
@@ -162,7 +170,9 @@ public void OnPluginStart()
 	HookEvent("finale_win", evt_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("map_transition", evt_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("mission_lost", evt_RoundEnd, EventHookMode_PostNoCopy);
-	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_PostNoCopy);
+	HookEvent("player_hurt", evt_PlayerHurt, EventHookMode_PostNoCopy);
+	HookEvent("ability_use", evt_GetSpitTime, EventHookMode_PostNoCopy);
+	HookEvent("player_spawn", evt_PlayerSpawn, EventHookMode_PostNoCopy);
 	// AddChangeHook
 	g_hSpawnDistanceMax.AddChangeHook(ConVarChanged_Cvars);
 	g_hSpawnDistanceMin.AddChangeHook(ConVarChanged_Cvars);
@@ -275,8 +285,33 @@ public Action MaxSpecialsSet(Handle timer)
 // *********************
 //		    事件
 // *********************
+//Spitter出生重置能力
+public void evt_PlayerSpawn(Event event, const char[] name, bool dont_broadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if(IsSpitter(client))
+	{
+		g_fSpitterSpitTime[client] = GetGameTime();
+	}
+}
+
+//获取spitter口水时间
+public void evt_GetSpitTime(Event event, const char[] name, bool dont_broadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if (!client || !IsClientInGame(client) || !IsFakeClient(client))
+		return;
+
+	static char ability[16];
+	event.GetString("ability", ability, sizeof ability);
+	if (strcmp(ability, "ability_spit") == 0)
+	{
+		g_fSpitterSpitTime[client] = GetGameTime();
+	}
+}
+
 /* 玩家受伤,增加对smoker得伤害 */
-public void Event_PlayerHurt(Event event, const char[] name, bool dont_broadcast)
+public void evt_PlayerHurt(Event event, const char[] name, bool dont_broadcast)
 {
 	if(g_bAddDamageToSmoker){
 		int victim = GetClientOfUserId(GetEventInt(event, "userid"));
@@ -322,6 +357,10 @@ public void InitStatus(){
 	g_iQueueIndex = 0;
 	g_iTeleportIndex = 0;
 	g_iWaveTime=0;
+	for(int i = 0; i <= MAXPLAYERS; i++)
+	{
+		g_fSpitterSpitTime[i] = 0.0;
+	}
 	for(int i = 0; i < 6; i++){
 		g_iSINum[i] =0;
 	}
@@ -1074,6 +1113,14 @@ bool CanBeTeleport(int client)
 {
 	if (IsInfectedBot(client) && IsClientInGame(client)&& IsPlayerAlive(client) && GetEntProp(client, Prop_Send, "m_zombieClass") != ZC_TANK && !IsPinningSomeone(client))
 	{
+		if(g_bSmokerAvailable && IsAiSmoker(client) && !IsSmokerCanUseAbility(client))
+		{
+			return false;
+		}
+		if(IsSpitter(client) && GetGameTime() - g_fSpitterSpitTime[client] < SPIT_INTERVAL)
+		{
+			return false;
+		}
 		return true;
 	}
 	else
@@ -1108,29 +1155,25 @@ public Action Timer_PositionSi(Handle timer)
 						aTeleportQueue.Push(type);
 						g_iTeleportIndex += 1;
 						Debug_Print("<传送队列> %N踢出，进入传送队列，当前 <传送队列> 队列长度：%d 队列索引：%d", client, aTeleportQueue.Length, g_iTeleportIndex);
-						//更改为踢出，处死有声音，如果是口水就不踢出，因为直接踢出容易有无声口水
-						if(IsSpitter(client)){
-							ForcePlayerSuicide(client);
-						}else
+						//不再单独处理spitter防止无声口水，已经在canbeteleport处理
+						if(g_iSINum[type - 1] > 0)
 						{
-							if(g_iSINum[type - 1] > 0)
-							{
-								g_iSINum[type - 1] --;
-							}
-							else
-							{
-								g_iSINum[type - 1] = 0;
-							}
-							if(g_iTotalSINum > 0)
-							{
-								g_iTotalSINum --;
-							}
-							else
-							{
-								g_iTotalSINum = 0;
-							}
-							KickClient(client, "传送刷特，踢出");
+							g_iSINum[type - 1] --;
 						}
+						else
+						{
+							g_iSINum[type - 1] = 0;
+						}
+						if(g_iTotalSINum > 0)
+						{
+							g_iTotalSINum --;
+						}
+						else
+						{
+							g_iTotalSINum = 0;
+						}
+						KickClient(client, "传送刷特，踢出");
+						
 						g_iTeleCount[client] = 0;
 					}
 				}

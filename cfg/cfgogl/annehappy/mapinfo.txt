@@ -191,6 +191,14 @@
 		{
 			"pain_pills"	"4"
 		}
+		"tank_ban_flow"
+		{
+			"first start"
+			{
+				"min"		"0"
+				"max"		"50"
+			}
+		}
 	}
 	"c3m1_plankcountry"
 	{

@@ -138,8 +138,7 @@ public Action OnPlayerRunCmd(int jockey, int &buttons, int &impulse, float vel[3
 				SubtractVectors(fTargetPos, fJockeyPos, subtractVec);
 				NormalizeVector(subtractVec, subtractVec);
 				GetVectorAngles(subtractVec, eyeAngleVec);
-				ScaleVector(subtractVec, g_hBhopSpeed.FloatValue * 2.5);
-				TeleportEntity(jockey, NULL_VECTOR, eyeAngleVec, subtractVec);
+				TeleportEntity(jockey, NULL_VECTOR, eyeAngleVec, NULL_VECTOR);
 				SetState(jockey, 0, IN_ATTACK);
 				#if (DEBUG_ALL)
 				{
@@ -191,7 +190,7 @@ public Action OnPlayerRunCmd(int jockey, int &buttons, int &impulse, float vel[3
 						&& actionPercent <= g_iActionArray[ACTION_JUMP_HIGH])
 					{
 						// 高跳
-						float eyeAngles[3] = {0.0}, angle = getRandomFloatInRange(30.0, 60.0);
+						float eyeAngles[3] = {0.0}, angle = getRandomFloatInRange(30.0, 50.0);
 						eyeAngles = angles;
 						eyeAngles[0] = -angle;
 						TeleportEntity(jockey, NULL_VECTOR, eyeAngles, NULL_VECTOR);

@@ -366,17 +366,20 @@ bool IsIncapped(int client)
     return view_as<bool>(GetEntProp(client, Prop_Send, "m_isIncapacitated"));
 }
 
+//最近生还者水平距离
 float NearestSurvivorDistance(int client)
 {
 	static int i, iCount;
 	static float vPos[3], vTarget[3], fDistance[MAXPLAYERS + 1];
 	iCount = 0;
 	GetClientAbsOrigin(client, vPos);
+	vPos[2] = 0.0;
 	for (i = 1; i <= MaxClients; i++)
 	{
 		if (i != client && IsClientInGame(i) && GetClientTeam(i) == TEAM_SURVIVOR && IsPlayerAlive(i) && !IsIncapped(i))
 		{
 			GetClientAbsOrigin(i, vTarget);
+			vTarget[2] = 0.0;
 			fDistance[iCount++] = GetVectorDistance(vPos, vTarget);
 		}
 	}
