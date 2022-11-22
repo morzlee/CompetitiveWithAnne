@@ -14,7 +14,7 @@ enum L4D2Team
 };
 
 new bool:readyUpIsAvailable;
-new bool:l4dstatsIsAvailable;
+new bool:g_bl4dstatsSystemAvailable;
 new Handle:sv_mincmdrate;
 new Handle:sv_maxcmdrate;
 new Handle:sv_minupdaterate;
@@ -56,7 +56,7 @@ public Action SetRates(int client, int args)
 { 
 	if(!IsValidClient(client))
 		return Plugin_Continue;
-	if(l4dstatsIsAvailable && l4dstats_GetClientScore(client) < 300000 )
+	if(g_bl4dstatsSystemAvailable && l4dstats_GetClientScore(client) < 300000 )
 	{
 		PrintToChat(client, "你的分数小于30W，无法设置旁观速率");
 		return Plugin_Handled;
@@ -86,6 +86,7 @@ public OnPluginEnd()
 public OnAllPluginsLoaded()
 {
     readyUpIsAvailable = LibraryExists("caster_system");
+    g_bl4dstatsSystemAvailable = LibraryExists("l4d_stats");
 }
 
 public OnLibraryRemoved(const String:name[])
@@ -94,6 +95,7 @@ public OnLibraryRemoved(const String:name[])
     {
         readyUpIsAvailable = false;
     }
+    else if ( StrEqual(name, "l4d_stats") ) { g_bl4dstatsSystemAvailable = true; }
 }
 
 public OnLibraryAdded(const String:name[])
@@ -102,6 +104,7 @@ public OnLibraryAdded(const String:name[])
     {
         readyUpIsAvailable = true;
     }
+    else if ( StrEqual(name, "l4d_stats") ) { g_bl4dstatsSystemAvailable = false; }
 }
 
 public OnConfigsExecuted()
@@ -169,7 +172,7 @@ AdjustRates(client)
         fLastAdjusted[client] = GetEngineTime();
 
         new L4D2Team:team = L4D2Team:GetClientTeam(client);
-        if (team == L4D2Team_Survivor || team == L4D2Team_Infected || (readyUpIsAvailable && IsClientCaster(client)) || (l4dstatsIsAvailable && l4dstats_GetClientScore(client) >= 300000) || GetUserAdmin(client) != INVALID_ADMIN_ID)
+        if (team == L4D2Team_Survivor || team == L4D2Team_Infected || (readyUpIsAvailable && IsClientCaster(client)) || (g_bl4dstatsSystemAvailable && l4dstats_GetClientScore(client) >= 300000) || GetUserAdmin(client) != INVALID_ADMIN_ID)
         {
             ResetRates(client);
         }
