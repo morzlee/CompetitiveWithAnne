@@ -55,7 +55,7 @@ public Plugin myinfo =
 
 
 ConVar hMaxSurvivors, hSurvivorsManagerEnable, hCvarAutoKickTank;
-int iMaxSurvivors, iEnable, iAutoKickTankEnable;
+int iMaxSurvivors, iEnable, iAutoKickTankEnable, iRound = 0;
 bool g_bWitchAndTankSystemAvailable = false;
 
 public void OnPluginStart()
@@ -81,6 +81,16 @@ public void OnPluginStart()
 	hCvarAutoKickTank.AddChangeHook(ConVarChanged_Cvars);
 	GetCvars();
 } 
+
+public Action L4D2_OnEndVersusModeRound(bool countSurvivors)
+{
+	if(countSurvivors == false && L4D_HasAnySurvivorLeftSafeArea())
+	{
+		iRound += 1;
+		CPrintToChatAll("[{olive}提示{default}]这是你们第 {blue}%d{default} 次团灭，请继续努力", iRound);
+	}
+	return Plugin_Continue;
+}
 
 public void OnAllPluginsLoaded(){
 	g_bWitchAndTankSystemAvailable = LibraryExists("witch_and_tankifier");
@@ -329,6 +339,7 @@ public Action OnAmbientSound(char sample[PLATFORM_MAX_PATH], int &entity, float 
 
 public Action ResetSurvivors(Handle event, char[] name, bool dontBroadcast)
 {
+	iRound = 0;
 	RestoreHealth();
 	ResetInventory();
 	return Plugin_Continue;
