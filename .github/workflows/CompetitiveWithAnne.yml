@@ -1,0 +1,38 @@
+name: CompetitiveWithAnne Update Achieve Release
+
+on:
+  push:
+    paths:
+      - '*.md'
+    branches:
+      - master
+
+jobs:
+
+  release:
+    if: github.repository == 'fantasylidong/CompetitiveWithAnne'
+    name: Upload  CompetitiveWithAnne Achieve if a new commit was been push.
+    runs-on: [ubuntu-latest]
+    
+    steps:
+      - name: Checkout code
+        run: |
+          git clone https://github.com/fantasylidong/CompetitiveWithAnne
+      
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
+      - name: Gzip
+        run: |
+          mkdir CompetitiveWithAnne-${{ steps.date.outputs.date }}
+          cp -R CompetitiveWithAnne/* CompetitiveWithAnne-${{ steps.date.outputs.date }}
+          tar -czvf  CompetitiveWithAnne--${{ steps.date.outputs.date }}.tar.gz  CompetitiveWithAnne--${{ steps.date.outputs.date }}
+ 
+      - name: Update release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+        with:
+          files: AnneServer-stable-${{ steps.date.outputs.date }}.tar.gz
+          tag_name: AnneServer-stable-release-${{ steps.date.outputs.date }}
