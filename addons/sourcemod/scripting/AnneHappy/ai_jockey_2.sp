@@ -39,7 +39,7 @@ public Plugin myinfo =
 }
 
 // ConVars
-ConVar g_hBhopSpeed, g_hStartHopDistance, g_hJockeyStumbleRadius,
+ConVar g_hBhopSpeed, g_hStartHopDistance, g_hJockeyStumbleRadius, g_hJockeyLeapTime,
 		g_hSpecialJumpAngle, g_hSpecialJumpChance, g_hActionChance, g_hAllowInterControl, g_hBackVision, g_hJockeySpeed;
 // Ints
 int g_iState[MAXPLAYERS + 1][8], g_iActionArray[ACTION_COUNT];
@@ -61,12 +61,12 @@ public void OnPluginStart()
 	g_hActionChance = CreateConVar("ai_jockeyNoActionChance", "20,40,40", "Jockey 执行以下行为的概率（冻结行动 [时间 0 - FREEZE_MAX_TIME 秒随机]，向后跳，高跳）逗号分割", CVAR_FLAG, true, 0.0, true, 100.0);
 	g_hAllowInterControl = CreateConVar("ai_JockeyAllowInterControl", "0", "Jockey 优先找被这些特感控制的生还者，抢控或补控（不想要这个功能可以设置为 0）", CVAR_FLAG);
 	g_hBackVision = CreateConVar("ai_JockeyBackVision", "50", "Jockey 在空中时将会以这个概率向当前视角反方向看", CVAR_FLAG, true, 0.0, true, 100.0);
+	g_hJockeyLeapTime =	FindConVar("z_jockey_leap_time");
 	// 其他
 	g_hJockeySpeed = FindConVar("z_jockey_speed");
 	// HookEvent
 	HookEvent("player_spawn", evt_PlayerSpawn, EventHookMode_Pre);
 	HookEvent("player_shoved", evt_PlayerShoved, EventHookMode_Pre);
-	HookEvent("player_jump", evt_PlayerJump, EventHookMode_Pre);
 	HookEvent("jockey_ride", evt_JockeyRide);
 	// AddChangeHook
 	g_hActionChance.AddChangeHook(GetActionPercent_Cvars);
@@ -107,7 +107,7 @@ public Action OnPlayerRunCmd(int jockey, int &buttons, int &impulse, float vel[3
 	// 当前 Jockey 有效，目标有效，进行其他操作
 	float fBuffer[3] = {0.0}, fTargetPos[3] = {0.0}, fDistance = NearestSurvivorDistance(jockey);
 	GetClientAbsOrigin(iTarget, fTargetPos);
-	fBuffer = UpdatePosition(jockey, iTarget, g_hJockeySpeed.FloatValue);
+	fBuffer = UpdatePosition(jockey, iTarget, g_hBhopSpeed.FloatValue);
 	// 当前速度不大于 130.0 或距离大于 StartHopDistance，不进行操作
 	if (fCurrentSpeed <= 130.0 || fDistance > g_hStartHopDistance.FloatValue) { return Plugin_Continue; }
 	if (iFlags & FL_ONGROUND)
@@ -223,7 +223,7 @@ public Action OnPlayerRunCmd(int jockey, int &buttons, int &impulse, float vel[3
 				GetAngleVectors(eyeAngles, eyeAngleVec, NULL_VECTOR, NULL_VECTOR);
 				NormalizeVector(eyeAngleVec, eyeAngleVec);
 				eyeAngleVec[2] = 0.0;
-				ScaleVector(eyeAngleVec, g_hBhopSpeed.FloatValue * 2.5);
+				ScaleVector(eyeAngleVec, g_hBhopSpeed.FloatValue);
 				if ((buttons & IN_FORWARD) || (buttons & IN_MOVELEFT) || (buttons & IN_MOVERIGHT)) { ClientPush(jockey, eyeAngleVec); }
 				#if (DEBUG_ALL)
 				{
@@ -240,7 +240,7 @@ public Action OnPlayerRunCmd(int jockey, int &buttons, int &impulse, float vel[3
 			TeleportEntity(jockey, NULL_VECTOR, angles, NULL_VECTOR);
 			SubtractVectors(fTargetPos, fJockeyPos, subtractVec);
 			NormalizeVector(subtractVec, subtractVec);
-			ScaleVector(subtractVec, g_hBhopSpeed.FloatValue * 2.5);
+			ScaleVector(subtractVec, g_hBhopSpeed.FloatValue);
 			buttons |= IN_JUMP;
 			ClientPush(jockey, subtractVec);
 			if (getRandomIntInRange(0, 1)) { buttons |= IN_DUCK; }
@@ -314,14 +314,15 @@ public Action evt_PlayerShoved(Event event, const char[] name, bool dontBroadcas
 	{
 		g_bHasBeenShoved[iShovedPlayer] = true;
 		g_fShovedTime[iShovedPlayer] = GetGameTime();
+		CreateTimer(g_hJockeyLeapTime.FloatValue, Timer_LeapTimeCoolDown, iShovedPlayer, TIMER_FLAG_NO_MAPCHANGE);
 	}
 	return Plugin_Continue;
 }
 
-public void evt_PlayerJump(Event event, const char[] name, bool dontBroadcast)
+public Action Timer_LeapTimeCoolDown(Handle timer, int jockey)
 {
-	int iJumpingPlayer = GetClientOfUserId(event.GetInt("userid"));
-	if (IsAiJockey(iJumpingPlayer)) { g_bHasBeenShoved[iJumpingPlayer] = false; }
+	g_bHasBeenShoved[jockey] = false;
+	return Plugin_Continue;
 }
 
 public Action evt_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
